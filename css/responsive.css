@@ -1,0 +1,238 @@
+/* Responsive Design */
+
+/* Tablet Styles */
+@media (max-width: 1024px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .header h1 {
+        font-size: 2em;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    
+    .chart-container {
+        padding: 20px;
+    }
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .header {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .header h1 {
+        font-size: 1.8em;
+        margin-bottom: 8px;
+    }
+    
+    .header p {
+        font-size: 1em;
+    }
+    
+    /* Stack dashboard charts vertically */
+    .dashboard {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    /* Stack consistency metrics */
+    .consistency-metrics {
+        grid-column: span 1;
+    }
+    
+    /* Stack control groups vertically */
+    .control-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .control-group label {
+        min-width: auto;
+        margin-bottom: 5px;
+    }
+    
+    /* Stack upload methods vertically */
+    .upload-methods {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    /* Adjust upload area */
+    .upload-area {
+        padding: 20px;
+    }
+    
+    /* Stack metrics in 2 columns on mobile */
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .metric-card {
+        padding: 20px;
+    }
+    
+    .metric-value {
+        font-size: 2em;
+    }
+    
+    /* Adjust student rows for mobile */
+    .student-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 15px;
+    }
+    
+    .student-name {
+        min-width: auto;
+        font-size: 1.1em;
+    }
+    
+    .label-distribution {
+        justify-content: flex-start;
+        width: 100%;
+    }
+    
+    .agreement-score {
+        min-width: auto;
+        text-align: left;
+        font-size: 1.2em;
+        color: #667eea;
+    }
+    
+    /* Adjust form elements */
+    select, input, button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .api-connection input,
+    .api-connection select,
+    .api-connection button {
+        width: 100%;
+    }
+    
+    /* Summary grid on mobile */
+    .summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .summary-item {
+        padding: 12px;
+    }
+    
+    .summary-item strong {
+        font-size: 1.3em;
+    }
+}
+
+/* Small Mobile Styles */
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.6em;
+    }
+    
+    .header p {
+        font-size: 0.9em;
+    }
+    
+    /* Single column metrics on small screens */
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-title {
+        font-size: 1.2em;
+    }
+    
+    .metric-value {
+        font-size: 1.8em;
+    }
+    
+    .upload-method {
+        padding: 20px;
+    }
+    
+    .upload-method h3 {
+        font-size: 1em;
+    }
+    
+    .label-pill {
+        font-size: 0.7em;
+        padding: 4px 8px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    
+    .upload-section,
+    .controls {
+        display: none;
+    }
+    
+    .chart-container,
+    .consistency-metrics,
+    .detailed-view {
+        background: white;
+        box-shadow: none;
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+    }
+    
+    .header {
+        background: white;
+        color: black;
+    }
+    
+    .header h1 {
+        color: black;
+        -webkit-text-fill-color: black;
+    }
+}
+
+/* High DPI / Retina Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .chart-container canvas {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .status-icon {
+        animation: none;
+    }
+    
+    .upload-status {
+        animation: none;
+    }
+}

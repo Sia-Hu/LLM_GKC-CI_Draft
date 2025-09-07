@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy Labeling Dashboard</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    
+    <!-- External Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <h1>Privacy Policy Labeling Dashboard</h1>
+            <p>Colgate University × University of Iowa Collaboration</p>
+            <p>GKCCI Privacy Policy Research - Data Labeling Consistency Analysis</p>
+        </header>
+
+        <!-- Controls Section -->
+        <section class="controls">
+            <div class="control-group">
+                <label for="projectSelect">Project:</label>
+                <select id="projectSelect">
+                    <option value="all">All Projects</option>
+                    <option value="privacy-policies">Privacy Policies</option>
+                    <option value="terms-of-service">Terms of Service</option>
+                    <option value="gdpr-compliance">GDPR Compliance</option>
+                </select>
+
+                <label for="studentFilter">Student:</label>
+                <select id="studentFilter">
+                    <option value="all">All Students</option>
+                </select>
+
+                <label for="dateRange">Date Range:</label>
+                <input type="date" id="startDate" value="2024-01-01">
+                <input type="date" id="endDate" value="2024-12-31">
+            </div>
+
+            <div class="control-group">
+                <button onclick="generateSampleData()">Generate Sample Data</button>
+                <button onclick="exportResults()">Export Results</button>
+                <button onclick="connectLabelStudio()">Connect to Label Studio</button>
+                <button onclick="clearData()">Clear All Data</button>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-methods">
+                <!-- API Connection -->
+                <div class="upload-method">
+                    <h3>📡 Connect to Label Studio API</h3>
+                    <div class="api-connection">
+                        <input type="url" id="labelStudioUrl" placeholder="Label Studio URL (e.g., http://localhost:8080)" value="http://localhost:8080">
+                        <input type="password" id="apiToken" placeholder="API Token (from Account & Settings)">
+                        <select id="projectId">
+                            <option value="">Select Project</option>
+                        </select>
+                        <button onclick="fetchFromAPI()">Fetch Live Data</button>
+                    </div>
+                </div>
+
+                <!-- File Upload -->
+                <div class="upload-method">
+                    <h3>📁 Upload Label Studio Export</h3>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <p>Drop JSON export file here or click to browse</p>
+                        <small>Supports: Label Studio JSON export, annotations export, task export</small>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
+                    </div>
+                </div>
+
+                <!-- JSON Paste -->
+                <div class="upload-method">
+                    <h3>📋 Paste JSON Data</h3>
+                    <textarea id="jsonPaste" placeholder="Paste your Label Studio export JSON here..." rows="4"></textarea>
+                    <button onclick="processJSONPaste()">Process JSON</button>
+                </div>
+            </div>
+
+            <!-- Upload Status -->
+            <div class="upload-status" id="uploadStatus" style="display: none;">
+                <div class="status-content">
+                    <div class="status-icon">⏳</div>
+                    <div class="status-text">Processing data...</div>
+                    <div class="status-details"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Summary -->
+        <section class="data-summary" id="dataSummary" style="display: none;">
+            <h3>📊 Current Dataset Summary</h3>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <strong id="taskCount">0</strong>
+                    <span>Tasks</span>
+                </div>
+                <div class="summary-item">
+                    <strong id="annotationCount">0</strong>
+                    <span>Annotations</span>
+                </div>
+                <div class="summary-item">
+                    <strong id="annotatorCount">0</strong>
+                    <span>Annotators</span>
+                </div>
+                <div class="summary-item">
+                    <strong id="labelTypeCount">0</strong>
+                    <span>Label Types</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Charts -->
+        <section class="dashboard">
+            <div class="chart-container">
+                <div class="chart-title">Label Distribution</div>
+                <canvas id="labelChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Inter-Annotator Agreement</div>
+                <canvas id="consistencyChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Consistency Metrics -->
+        <section class="consistency-metrics">
+            <div class="chart-title">Consistency Metrics</div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value" id="overallAgreement">85.2%</div>
+                    <div class="metric-label">Overall Agreement</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="kappaScore">0.78</div>
+                    <div class="metric-label">Cohen's Kappa</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="totalLabels">1,247</div>
+                    <div class="metric-label">Total Labels</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="activeAnnotators">8</div>
+                    <div class="metric-label">Active Annotators</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed View -->
+        <section class="detailed-view">
+            <div class="chart-title">Law Student Annotation Performance</div>
+            <div id="studentDetails"></div>
+        </section>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="js/utils.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/labelstudio.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
