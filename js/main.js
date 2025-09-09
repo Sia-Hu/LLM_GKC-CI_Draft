@@ -4,7 +4,15 @@
  * Initialize the application when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Privacy Policy Dashboard initializing...');
+    console.log('GKCCI Privacy Policy Dashboard initializing...');
+    
+    // Check authentication first
+    if (!checkAuthentication()) {
+        return; // Will redirect to login
+    }
+    
+    // Initialize user interface
+    initializeUserInterface();
     
     // Initialize drag and drop functionality
     setupDragAndDrop();
@@ -15,13 +23,193 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize date inputs with current date
     initializeDateInputs();
     
-    // Generate sample data on first load
+    // Initialize enhanced features
+    initializeEnhancedApp();
+    
+    // Load user-specific data
+    loadUserData();
+    
+    // Generate sample data on first load if no user data exists
     setTimeout(() => {
-        generateSampleData();
+        if (!hasUserData()) {
+            generateSampleData();
+        }
     }, 500);
     
     console.log('Dashboard initialization complete');
 });
+
+/**
+ * Check if user is authenticated
+ */
+function checkAuthentication() {
+    // Import auth functions
+    if (typeof window.UserAuth === 'undefined') {
+        // Load auth script if not already loaded
+        const script = document.createElement('script');
+        script.src = 'js/auth.js';
+        script.onload = function() {
+            if (!window.UserAuth.requireAuth()) {
+                return false;
+            }
+        };
+        document.head.appendChild(script);
+        return false;
+    }
+    
+    return window.UserAuth.requireAuth();
+}
+
+/**
+ * Initialize user interface with current user info
+ */
+function initializeUserInterface() {
+    if (typeof window.UserAuth !== 'undefined' && window.UserAuth.isLoggedIn()) {
+        const user = window.UserAuth.getCurrentUser();
+        
+        // Update user info in header
+        document.getElementById('userName').textContent = `${user.firstName} ${user.lastName}`;
+        document.getElementById('userRole').textContent = `${user.role} at ${user.university}`;
+        
+        // Set user avatar with initials
+        const avatar = document.getElementById('userAvatar');
+        avatar.textContent = `${user.firstName[0]}${user.lastName[0]}`;
+        
+        // Update page title
+        document.title = `GKCCI Dashboard - ${user.firstName} ${user.lastName}`;
+    }
+}
+
+/**
+ * Toggle user dropdown menu
+ */
+function toggleUserMenu() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('show');
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', function closeMenu(e) {
+        if (!e.target.closest('.user-menu')) {
+            dropdown.classList.remove('show');
+            document.removeEventListener('click', closeMenu);
+        }
+    });
+}
+
+/**
+ * User menu functions
+ */
+function showProfile() {
+    const user = window.UserAuth.getCurrentUser();
+    alert(`Profile Information:\n\nName: ${user.firstName} ${user.lastName}\nEmail: ${user.email}\nUniversity: ${user.university}\nRole: ${user.role}\nAccount Created: ${new Date(user.createdAt).toLocaleDateString()}`);
+}
+
+function showMyData() {
+    const userData = getUserSpecificData();
+    const totalAnnotations = userData.annotations?.length || 0;
+    const totalUploads = userData.uploads?.length || 0;
+    const lastUpload = userData.uploads?.length > 0 ? 
+        new Date(userData.uploads[userData.uploads.length - 1].timestamp).toLocaleDateString() : 'Never';
+    
+    alert(`Your Data Summary:\n\nTotal Annotations: ${totalAnnotations}\nFiles Uploaded: ${totalUploads}\nLast Upload: ${lastUpload}\n\nUse the Export button to download your data.`);
+}
+
+function showSettings() {
+    const newEmail = prompt('Update Email Address:', window.UserAuth.getCurrentUser().email);
+    if (newEmail && newEmail !== window.UserAuth.getCurrentUser().email) {
+        // In a real app, you'd validate and update this
+        alert('Email update feature coming soon!');
+    }
+}
+
+function showHelp() {
+    alert('GKCCI Dashboard Help:\n\n1. Upload JSON: Use the upload section to add your Label Studio exports\n2. View Analytics: Charts show your annotation consistency and patterns\n3. Compare Data: See how your annotations compare with other annotators\n4. Export Results: Download your analysis for research papers\n5. Collaborate: Work with other law students to create gold standard data\n\nFor technical support: support@gkcci-project.org');
+}
+
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Save any pending data before logout
+        saveUserData();
+        window.UserAuth.logout();
+    }
+}
+
+/**
+ * User-specific data management
+ */
+function getUserDataKey() {
+    const user = window.UserAuth.getCurrentUser();
+    return `gkcci_data_${user.id}`;
+}
+
+function getUserSpecificData() {
+    const key = getUserDataKey();
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : {
+        annotations: [],
+        uploads: [],
+        projects: [],
+        settings: {}
+    };
+}
+
+function saveUserData() {
+    const key = getUserDataKey();
+    const userData = {
+        annotations: window.labelingData.annotations || [],
+        students: window.labelingData.students || [],
+        labels: window.labelingData.labels || [],
+        projects: window.labelingData.projects || [],
+        uploads: getUserSpecificData().uploads || [],
+        lastSaved: new Date().toISOString()
+    };
+    
+    localStorage.setItem(key, JSON.stringify(userData));
+}
+
+function loadUserData() {
+    const userData = getUserSpecificData();
+    
+    if (userData.annotations && userData.annotations.length > 0) {
+        window.labelingData = {
+            annotations: userData.annotations,
+            students: userData.students || [],
+            labels: userData.labels || [],
+            projects: userData.projects || []
+        };
+        
+        updateVisualizations();
+        populateStudentFilter();
+        
+        if (userData.annotations.length > 0) {
+            showDataSummary(
+                userData.uploads?.length || 0,
+                userData.annotations.length,
+                userData.students?.length || 0,
+                userData.labels?.length || 0
+            );
+        }
+    }
+}
+
+function hasUserData() {
+    const userData = getUserSpecificData();
+    return userData.annotations && userData.annotations.length > 0;
+}
+
+function addUserUpload(filename, annotationCount) {
+    const userData = getUserSpecificData();
+    if (!userData.uploads) userData.uploads = [];
+    
+    userData.uploads.push({
+        filename: filename,
+        timestamp: new Date().toISOString(),
+        annotationCount: annotationCount
+    });
+    
+    const key = getUserDataKey();
+    localStorage.setItem(key, JSON.stringify(userData));
+}
 
 /**
  * Setup drag and drop functionality for file uploads

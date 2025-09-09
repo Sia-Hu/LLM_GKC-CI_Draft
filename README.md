@@ -26,6 +26,16 @@ The dashboard analyzes annotations using 8 key parameters:
 open index.html
 ```
 
+### Use these demo accounts to test the system:
+
+**Law Student Demo:**
+- Email: `student.demo@uiowa.edu`
+- Password: `demo123`
+
+**Professor Demo:**
+- Email: `professor.demo@colgate.edu`  
+- Password: `demo123`
+
 ### 2. Connect to Label Studio
 
 #### Option A: Live API Connection (Recommended)
