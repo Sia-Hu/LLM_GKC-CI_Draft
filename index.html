@@ -14,11 +14,49 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header Section -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GKCCI Privacy Policy Dashboard</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    
+    <!-- External Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section with User Info -->
         <header class="header">
-            <h1>Privacy Policy Labeling Dashboard</h1>
-            <p>Colgate University × University of Iowa Collaboration</p>
-            <p>GKCCI Privacy Policy Research - Data Labeling Consistency Analysis</p>
+            <div class="header-content">
+                <div class="header-main">
+                    <h1>GKCCI Privacy Policy Dashboard</h1>
+                    <p>Colgate University × University of Iowa Collaboration</p>
+                    <p>Data Labeling Consistency Analysis & Gold Standard Creation</p>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userRole">Loading...</div>
+                    </div>
+                    <div class="user-menu">
+                        <button class="menu-btn" onclick="toggleUserMenu()">⋮</button>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <a href="#" onclick="showProfile()">👤 Profile</a>
+                            <a href="#" onclick="showMyData()">📊 My Data</a>
+                            <a href="#" onclick="showSettings()">⚙️ Settings</a>
+                            <a href="#" onclick="showHelp()">❓ Help</a>
+                            <hr>
+                            <a href="#" onclick="logout()" class="logout">🚪 Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <!-- Controls Section -->
