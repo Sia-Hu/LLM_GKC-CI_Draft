@@ -3,22 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Privacy Policy Labeling Dashboard</title>
-    
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    
-    <!-- External Dependencies -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-</head>
-<body>
-    <div class="container">
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GKCCI Privacy Policy Dashboard</title>
     
     <!-- Stylesheets -->
@@ -30,7 +14,7 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header Section with User Info -->
+        <!-- Header Section -->
         <header class="header">
             <div class="header-content">
                 <div class="header-main">
@@ -41,56 +25,80 @@
                 <div class="user-info">
                     <div class="user-avatar" id="userAvatar">👤</div>
                     <div class="user-details">
-                        <div class="user-name" id="userName">Loading...</div>
-                        <div class="user-role" id="userRole">Loading...</div>
-                    </div>
-                    <div class="user-menu">
-                        <button class="menu-btn" onclick="toggleUserMenu()">⋮</button>
-                        <div class="dropdown-menu" id="userDropdown">
-                            <a href="#" onclick="showProfile()">👤 Profile</a>
-                            <a href="#" onclick="showMyData()">📊 My Data</a>
-                            <a href="#" onclick="showSettings()">⚙️ Settings</a>
-                            <a href="#" onclick="showHelp()">❓ Help</a>
-                            <hr>
-                            <a href="#" onclick="logout()" class="logout">🚪 Logout</a>
-                        </div>
+                        <div class="user-name" id="userName">Welcome!</div>
+                        <div class="user-role" id="userRole">Select your details below</div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Controls Section -->
-        <section class="controls">
-            <div class="control-group">
-                <label for="projectSelect">Project:</label>
-                <select id="projectSelect">
-                    <option value="all">All Projects</option>
-                    <option value="privacy-policies">Privacy Policies</option>
-                    <option value="terms-of-service">Terms of Service</option>
-                    <option value="gdpr-compliance">GDPR Compliance</option>
+        <!-- Student Selection Section -->
+        <section class="student-selection" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
+            <h3 style="color: #2d3748; margin-bottom: 20px;">👨‍🎓 Student Information & Policy Selection</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div>
+                    <label for="studentName" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">Your Name:</label>
+                    <input type="text" id="studentName" placeholder="Enter your full name" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                </div>
+                <div>
+                    <label for="studentEmail" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">Email (Optional):</label>
+                    <input type="email" id="studentEmail" placeholder="your.email@uiowa.edu" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                </div>
+                <div>
+                    <label for="university" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">University:</label>
+                    <select id="university" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                        <option value="">Select University</option>
+                        <option value="University of Iowa">University of Iowa</option>
+                        <option value="Colgate University">Colgate University</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label for="policyCategory" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">📋 Policy Category:</label>
+                <select id="policyCategory" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; background: white;">
+                    <option value="">Select Policy Category to Annotate</option>
+                    <option value="social-media">Social Media Platforms (Facebook, Twitter, Instagram)</option>
+                    <option value="ecommerce">E-commerce & Shopping (Amazon, eBay, Online Stores)</option>
+                    <option value="healthcare">Healthcare & Medical Services</option>
+                    <option value="financial">Financial Services & Banking</option>
+                    <option value="education">Educational Platforms & EdTech</option>
+                    <option value="gaming">Gaming & Entertainment</option>
+                    <option value="cloud-storage">Cloud Storage & File Sharing</option>
+                    <option value="mobile-apps">Mobile Apps & Services</option>
+                    <option value="streaming">Video/Music Streaming Services</option>
+                    <option value="government">Government & Public Services</option>
+                    <option value="travel">Travel & Transportation</option>
+                    <option value="other">Other Policy Type</option>
                 </select>
-
-                <label for="studentFilter">Student:</label>
-                <select id="studentFilter">
-                    <option value="all">All Students</option>
-                </select>
-
-                <label for="dateRange">Date Range:</label>
-                <input type="date" id="startDate" value="2024-01-01">
-                <input type="date" id="endDate" value="2024-12-31">
             </div>
 
-            <div class="control-group">
-                <button onclick="generateSampleData()">Generate Sample Data</button>
-                <button onclick="exportResults()">Export Results</button>
-                <button onclick="connectLabelStudio()">Connect to Label Studio</button>
-                <button onclick="clearData()">Clear All Data</button>
+            <div id="selectedInfo" style="display: none; background: linear-gradient(45deg, #48bb78, #38a169); color: white; padding: 15px; border-radius: 10px; text-align: center;">
+                <strong id="selectedText">Ready to upload annotations!</strong>
             </div>
         </section>
 
         <!-- Upload Section -->
         <section class="upload-section">
             <div class="upload-methods">
+                <!-- JSON Paste -->
+                <div class="upload-method">
+                    <h3>📋 Paste JSON Data</h3>
+                    <textarea id="jsonPaste" placeholder="Paste your Label Studio export JSON here..." rows="4" disabled></textarea>
+                    <button onclick="processJSONPaste()" disabled>Process JSON</button>
+                </div>
+
+                <!-- File Upload -->
+                <div class="upload-method">
+                    <h3>📁 Upload Label Studio Export</h3>
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <p>Please select your name and policy category first</p>
+                        <small>Supports: Label Studio JSON export, annotations export, task export</small>
+                        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
+                    </div>
+                </div>
+
                 <!-- API Connection -->
                 <div class="upload-method">
                     <h3>📡 Connect to Label Studio API</h3>
@@ -103,23 +111,6 @@
                         <button onclick="fetchFromAPI()">Fetch Live Data</button>
                     </div>
                 </div>
-
-                <!-- File Upload -->
-                <div class="upload-method">
-                    <h3>📁 Upload Label Studio Export</h3>
-                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                        <p>Drop JSON export file here or click to browse</p>
-                        <small>Supports: Label Studio JSON export, annotations export, task export</small>
-                        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
-                    </div>
-                </div>
-
-                <!-- JSON Paste -->
-                <div class="upload-method">
-                    <h3>📋 Paste JSON Data</h3>
-                    <textarea id="jsonPaste" placeholder="Paste your Label Studio export JSON here..." rows="4"></textarea>
-                    <button onclick="processJSONPaste()">Process JSON</button>
-                </div>
             </div>
 
             <!-- Upload Status -->
@@ -129,6 +120,43 @@
                     <div class="status-text">Processing data...</div>
                     <div class="status-details"></div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Policy Upload Tracking Section -->
+        <section class="policy-tracking" id="policyTracking" style="display: none; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
+            <h3 style="color: #2d3748; margin-bottom: 20px;">📁 Uploaded Annotations by Policy Category</h3>
+            <div id="policyTrackingContent">
+                <!-- This will be populated with uploaded files by category -->
+            </div>
+        </section>
+
+        <!-- Simple Filter Controls -->
+        <section class="controls">
+            <div class="control-group">
+                <label for="projectSelect">Filter by Policy Category:</label>
+                <select id="projectSelect">
+                    <option value="all">All Policy Categories</option>
+                    <option value="social-media">Social Media Platforms</option>
+                    <option value="ecommerce">E-commerce & Shopping</option>
+                    <option value="healthcare">Healthcare & Medical Services</option>
+                    <option value="financial">Financial Services & Banking</option>
+                    <option value="education">Educational Platforms & EdTech</option>
+                    <option value="gaming">Gaming & Entertainment</option>
+                    <option value="cloud-storage">Cloud Storage & File Sharing</option>
+                    <option value="mobile-apps">Mobile Apps & Services</option>
+                    <option value="streaming">Video/Music Streaming Services</option>
+                    <option value="government">Government & Public Services</option>
+                    <option value="travel">Travel & Transportation</option>
+                    <option value="other">Other Policy Type</option>
+                </select>
+
+                <label for="studentFilter">Filter by Student:</label>
+                <select id="studentFilter">
+                    <option value="all">All Students</option>
+                </select>
+
+                <button onclick="applyFilters()">Apply Filters</button>
             </div>
         </section>
 
@@ -150,7 +178,7 @@
                 </div>
                 <div class="summary-item">
                     <strong id="labelTypeCount">0</strong>
-                    <span>Label Types</span>
+                    <span>GKCCI Parameters</span>
                 </div>
             </div>
         </section>
@@ -158,7 +186,7 @@
         <!-- Dashboard Charts -->
         <section class="dashboard">
             <div class="chart-container">
-                <div class="chart-title">Label Distribution</div>
+                <div class="chart-title">GKCCI Parameter Distribution</div>
                 <canvas id="labelChart"></canvas>
             </div>
 
@@ -170,7 +198,7 @@
 
         <!-- Consistency Metrics -->
         <section class="consistency-metrics">
-            <div class="chart-title">Consistency Metrics</div>
+            <div class="chart-title">GKCCI Annotation Quality Metrics</div>
             <div class="metrics-grid">
                 <div class="metric-card">
                     <div class="metric-value" id="overallAgreement">85.2%</div>
@@ -182,19 +210,29 @@
                 </div>
                 <div class="metric-card">
                     <div class="metric-value" id="totalLabels">1,247</div>
-                    <div class="metric-label">Total Labels</div>
+                    <div class="metric-label">Total Annotations</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-value" id="activeAnnotators">8</div>
-                    <div class="metric-label">Active Annotators</div>
+                    <div class="metric-label">Law Students</div>
                 </div>
             </div>
         </section>
 
         <!-- Detailed View -->
         <section class="detailed-view">
-            <div class="chart-title">Law Student Annotation Performance</div>
-            <div id="studentDetails"></div>
+            <div class="chart-title">Annotation Performance by Policy Category</div>
+            <div id="policyPerformance">
+                <!-- This will show performance organized by policy category -->
+            </div>
+        </section>
+
+        <!-- Student Performance View -->
+        <section class="detailed-view" style="margin-top: 30px;">
+            <div class="chart-title">Individual Student Performance</div>
+            <div id="studentDetails">
+                <!-- This will be populated by JavaScript with individual student performance data -->
+            </div>
         </section>
     </div>
 
