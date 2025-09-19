@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Explorer - GKCCI Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .explorer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .breadcrumb {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        
+        .breadcrumb-item {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .breadcrumb-item:hover {
+            text-decoration: underline;
+        }
+        
+        .breadcrumb-item.active {
+            color: #333;
+            cursor: default;
+        }
+        
+        .breadcrumb-separator {
+            margin: 0 10px;
+            color: #666;
+        }
+        
+        .project-tree {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .project-folder {
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .project-folder:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.1);
+        }
+        
+        .project-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-info h3 {
+            margin: 0;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .project-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .project-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85em;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+        
+        .stat-label {
+            color: #666;
+        }
+        
+        .project-files {
+            padding: 20px;
+            display: none;
+            background: #f8f9fa;
+        }
+        
+        .project-files.expanded {
+            display: block;
+        }
+        
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .file-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .file-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9em;
+            word-break: break-word;
+        }
+        
+        .file-type {
+            background: #667eea;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            white-space: nowrap;
+        }
+        
+        .file-meta {
+            font-size: 0.8em;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .file-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .file-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+        
+        .empty-project {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-style: italic;
+        }
+        
+        .expand-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .expand-toggle:hover {
+            background: #f1f5f9;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px;">
+    <div class="explorer-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <div>
+                <h1 style="margin: 0; color: #333;">Project Explorer</h1>
+                <p style="margin: 5px 0 0 0; color: #666;">Browse and manage your annotation projects</p>
+            </div>
+            <a href="index.html" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-weight: 600;">
+                ← Back to Dashboard
+            </a>
+        </div>
+        
+        <div class="breadcrumb">
+            <span class="breadcrumb-item active">📁 All Projects</span>
+        </div>
+        
+        <div id="projectContainer">
+            <div style="text-align: center; padding: 40px;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 15px; color: #666;">Loading projects...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api';
+        let allProjects = {};
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllProjects();
+        });
+        
+        async function loadAllProjects() {
+            try {
+                const response = await fetch(`${API_BASE}/policies`);
+                if (!response.ok) {
+                    throw new Error('Failed to load projects');
+                }
+                
+                allProjects = await response.json();
+                renderProjectTree();
+                
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('projectContainer').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #e53e3e;">
+                        <h3>Failed to load projects</h3>
+                        <p>Please try refreshing the page</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderProjectTree() {
+            const container = document.getElementById('projectContainer');
+            const projectNames = Object.keys(allProjects);
+            
+            if (projectNames.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 60px; color: #666;">
+                        <h3>No projects found</h3>
+                        <p>Create your first annotation project on the main dashboard</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const projectsHTML = projectNames.map(projectName => {
+                const project = allProjects[projectName];
+                const contributorCount = Object.keys(project.contributors).length;
+                const totalFiles = Object.values(project.contributors).reduce((sum, contributor) => sum + contributor.uploads.length, 0);
+                const lastUpdated = new Date(project.lastUpdated || project.createdAt).toLocaleDateString();
+                
+                return `
+                    <div class="project-folder" id="project-${encodeURIComponent(projectName)}">
+                        <div class="project-header" onclick="toggleProject('${encodeURIComponent(projectName)}')">
+                            <div class="project-info">
+                                <h3>
+                                    📁 ${projectName}
+                                    <span class="expand-toggle" id="toggle-${encodeURIComponent(projectName)}">▶</span>
+                                </h3>
+                                <div class="project-meta">
+                                    Created: ${new Date(project.createdAt).toLocaleDateString()} | Last updated: ${lastUpdated}
+                                </div>
+                            </div>
+                            <div class="project-stats">
+                                <div class="stat-item">
+                                    <div class="stat-value" style="color: #667eea;">${contributorCount}</div>
+                                    <div class="stat-label">Contributors</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" style="color: #48bb78;">${project.totalAnnotations || 0}</div>
+                                    <div class="stat-label">Annotations</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-value" style="color: #f093fb;">${totalFiles}</div>
+                                    <div class="stat-label">Files</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="project-files" id="files-${encodeURIComponent(projectName)}">
+                            <div style="text-align: center; padding: 20px;">
+                                <div class="loading-spinner"></div>
+                                <p style="margin-top: 10px; color: #666;">Loading files...</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `<div class="project-tree">${projectsHTML}</div>`;
+        }
+        
+        async function toggleProject(encodedProjectName) {
+            const projectName = decodeURIComponent(encodedProjectName);
+            const filesContainer = document.getElementById(`files-${encodedProjectName}`);
+            const toggle = document.getElementById(`toggle-${encodedProjectName}`);
+            
+            if (filesContainer.classList.contains('expanded')) {
+                // Collapse
+                filesContainer.classList.remove('expanded');
+                toggle.textContent = '▶';
+            } else {
+                // Expand and load files
+                filesContainer.classList.add('expanded');
+                toggle.textContent = '▼';
+                
+                try {
+                    const response = await fetch(`${API_BASE}/policies/${encodeURIComponent(projectName)}/files`);
+                    if (!response.ok) {
+                        throw new Error('Failed to load files');
+                    }
+                    
+                    const fileData = await response.json();
+                    renderProjectFiles(encodedProjectName, fileData);
+                    
+                } catch (error) {
+                    console.error('Error loading files:', error);
+                    filesContainer.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #e53e3e;">
+                            Failed to load files for this project
+                        </div>
+                    `;
+                }
+            }
+        }
+        
+        function renderProjectFiles(encodedProjectName, fileData) {
+            const projectName = decodeURIComponent(encodedProjectName);
+            const filesContainer = document.getElementById(`files-${encodedProjectName}`);
+            
+            if (fileData.files.length === 0) {
+                filesContainer.innerHTML = `
+                    <div class="empty-project">
+                        No files uploaded to this project yet
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group files by contributor
+            const project = allProjects[projectName];
+            const filesByContributor = {};
+            
+            Object.entries(project.contributors).forEach(([contributor, data]) => {
+                filesByContributor[contributor] = data.uploads;
+            });
+            
+            const filesHTML = Object.entries(filesByContributor).map(([contributor, uploads]) => {
+                const contributorFiles = uploads.map(upload => {
+                    const fileInfo = fileData.files.find(f => f.name === upload.storedAs);
+                    const fileSize = fileInfo ? (fileInfo.size / 1024).toFixed(1) : 'Unknown';
+                    
+                    return `
+                        <div class="file-card">
+                            <div class="file-header">
+                                <div class="file-name">${upload.filename}</div>
+                                <div class="file-type">JSON</div>
+                            </div>
+                            <div class="file-meta">
+                                <strong>Contributor:</strong> ${contributor}<br>
+                                <strong>Annotations:</strong> ${upload.annotationCount}<br>
+                                <strong>Size:</strong> ${fileSize} KB<br>
+                                <strong>Uploaded:</strong> ${new Date(upload.uploadedAt).toLocaleDateString()}<br>
+                                <strong>Source:</strong> ${upload.source === 'paste' ? 'Pasted JSON' : 'File Upload'}
+                            </div>
+                            <div class="file-actions">
+                                <button class="file-btn btn-primary" onclick="viewFile('${encodeURIComponent(projectName)}', '${encodeURIComponent(upload.storedAs)}')">
+                                    View
+                                </button>
+                                <button class="file-btn btn-success" onclick="downloadFile('${encodeURIComponent(projectName)}', '${encodeURIComponent(upload.storedAs)}', '${upload.filename}')">
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="color: #333; margin-bottom: 15px; padding-left: 10px; border-left: 4px solid #667eea;">
+                            👤 ${contributor} (${uploads.length} files)
+                        </h4>
+                        <div class="file-grid">
+                            ${contributorFiles}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            filesContainer.innerHTML = `
+                <div style="margin-bottom: 15px; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #48bb78;">
+                    <strong>Project Directory:</strong> <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 3px;">${fileData.directory}</code><br>
+                    <strong>Total Files:</strong> ${fileData.files.length}
+                </div>
+                ${filesHTML}
+            `;
+        }
+        
+        async function viewFile(encodedProjectName, encodedFileName) {
+            const projectName = decodeURIComponent(encodedProjectName);
+            const fileName = decodeURIComponent(encodedFileName);
+            
+            try {
+                const response = await fetch(`${API_BASE}/policy-file/${encodeURIComponent(projectName)}/${encodeURIComponent(fileName)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load file');
+                }
+                
+                const data = await response.json();
+                showFileViewer(fileName, data);
+                
+            } catch (error) {
+                console.error('Error loading file:', error);
+                alert('Failed to load file content');
+            }
+        }
+        
+        async function downloadFile(encodedProjectName, encodedFileName, originalName) {
+            const projectName = decodeURIComponent(encodedProjectName);
+            const fileName = decodeURIComponent(encodedFileName);
+            
+            try {
+                const response = await fetch(`${API_BASE}/policy-file/${encodeURIComponent(projectName)}/${encodeURIComponent(fileName)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to download file');
+                }
+                
+                const data = await response.json();
+                
+                // Create download
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = originalName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Failed to download file');
+            }
+        }
+        
+        function showFileViewer(fileName, data) {
+            // Create modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+            
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                background: white;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 90vw;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            `;
+            
+            modalContent.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px;">
+                    <h2 style="margin: 0; color: #333;">File Viewer: ${fileName}</h2>
+                    <button onclick="this.closest('.file-modal').remove()" 
+                            style="background: #e53e3e; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer;">
+                        Close
+                    </button>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-top: 0; color: #333;">JSON Content:</h4>
+                    <pre style="background: white; padding: 15px; border-radius: 6px; overflow-x: auto; max-height: 500px; font-family: 'Courier New', monospace; font-size: 0.85em; border: 1px solid #e2e8f0;">${JSON.stringify(data, null, 2)}</pre>
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button onclick="navigator.clipboard.writeText(JSON.stringify(${JSON.stringify(data)}, null, 2)).then(() => alert('Copied to clipboard!'))" 
+                            style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px;">
+                        Copy to Clipboard
+                    </button>
+                    <button onclick="downloadFileContent('${fileName}', ${JSON.stringify(data)})" 
+                            style="background: #48bb78; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer;">
+                        Download
+                    </button>
+                </div>
+            `;
+            
+            modal.appendChild(modalContent);
+            modal.className = 'file-modal';
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking backdrop
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+        
+        function downloadFileContent(fileName, data) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

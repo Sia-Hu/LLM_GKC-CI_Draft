@@ -62,7 +62,6 @@ body {
     background: rgba(102, 126, 234, 0.1);
     padding: 15px 20px;
     border-radius: 15px;
-    position: relative;
 }
 
 .user-avatar {
@@ -135,12 +134,6 @@ body {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.student-selection select[id="policyCategory"] {
-    font-size: 16px;
-    padding: 12px;
-    background: white;
-}
-
 #selectedInfo {
     background: linear-gradient(45deg, #48bb78, #38a169);
     color: white;
@@ -149,6 +142,263 @@ body {
     text-align: center;
     margin-top: 15px;
     animation: slideIn 0.3s ease;
+}
+
+/* Project Selection Button Styles */
+.project-selection-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.project-button {
+    padding: 25px;
+    border: 3px solid;
+    background: white;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.project-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.project-button.join-existing {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.project-button.join-existing.selected {
+    background: #667eea;
+    color: white;
+}
+
+.project-button.create-new {
+    border-color: #48bb78;
+    color: #48bb78;
+}
+
+.project-button.create-new.selected {
+    background: #48bb78;
+    color: white;
+}
+
+.button-title {
+    font-size: 1.2em;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.button-subtitle {
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+/* Project Selection Sections */
+.project-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+.project-section.existing {
+    border-left: 4px solid #667eea;
+}
+
+.project-section.new {
+    border-left: 4px solid #48bb78;
+}
+
+.project-section h4 {
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.project-section.existing h4 {
+    color: #667eea;
+}
+
+.project-section.new h4 {
+    color: #48bb78;
+}
+
+/* Project Preview */
+.project-preview {
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    margin-top: 10px;
+    border: 1px solid #e2e8f0;
+    display: none;
+    position: relative;
+    z-index: 1000;
+}
+
+.project-preview-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.project-preview-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.project-preview-name {
+    font-weight: 600;
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.project-preview-stats {
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* Selected Project Display */
+.selected-project-display {
+    background: linear-gradient(45deg, #48bb78, #38a169);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 15px;
+    text-align: center;
+    display: none;
+    animation: slideIn 0.3s ease;
+    position: relative;
+    z-index: 999;
+}
+
+/* Project Selection Sections - Higher z-index */
+.project-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    display: none;
+    position: relative;
+    z-index: 1001;
+}
+
+.project-section.existing {
+    border-left: 4px solid #667eea;
+}
+
+.project-section.new {
+    border-left: 4px solid #48bb78;
+}
+
+.project-section h4 {
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.project-section.existing h4 {
+    color: #667eea;
+}
+
+.project-section.new h4 {
+    color: #48bb78;
+}
+
+/* Ensure dropdown selects appear above other content */
+.project-section select {
+    position: relative;
+    z-index: 1002;
+}
+
+/* Policy Search Dropdown - Enhanced visibility */
+#existingPolicies {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    max-height: 250px;
+    overflow-y: auto;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    z-index: 1003;
+    width: 100%;
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+}
+
+#existingPolicies div {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#existingPolicies div:hover {
+    background-color: #f8f9fa;
+}
+
+#existingPolicies div:last-child {
+    border-bottom: none;
+    padding-bottom: 20px;
+}
+
+/* Ensure buttons inside dropdown have proper spacing */
+#existingPolicies button {
+    margin-top: 10px;
+    padding: 10px 20px;
+    min-height: 44px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Make sure the dropdown container has enough space */
+.student-selection {
+    position: relative;
+    overflow: visible;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    #existingPolicies {
+        max-height: 300px;
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+    
+    #existingPolicies div {
+        padding: 20px 15px;
+        min-height: 80px;
+    }
+    
+    #existingPolicies div:last-child {
+        padding-bottom: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    #existingPolicies {
+        max-height: 350px;
+    }
+    
+    #existingPolicies div {
+        padding: 25px 15px;
+        min-height: 90px;
+    }
 }
 
 /* Upload Section */
@@ -222,13 +472,6 @@ body {
     transform: scale(1.02);
 }
 
-.upload-area.disabled {
-    opacity: 0.5;
-    pointer-events: none;
-    border-color: #cbd5e0;
-    background: #f8f9fa;
-}
-
 .upload-area small {
     display: block;
     margin-top: 10px;
@@ -279,12 +522,32 @@ body {
     font-size: 1.1em;
 }
 
-.status-details {
-    font-size: 0.9em;
-    opacity: 0.9;
+/* Upload Success */
+.upload-success {
+    background: linear-gradient(135deg, #48bb78, #38a169);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    animation: slideIn 0.3s ease;
 }
 
-/* Policy Tracking Section */
+.success-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.success-icon {
+    font-size: 1.5em;
+}
+
+.success-text {
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+/* Policy List Section */
 .policy-tracking {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -301,87 +564,134 @@ body {
     font-weight: 600;
 }
 
-.policy-category-section {
-    margin-bottom: 25px;
+/* Policy Card Styles - Enhanced for Delete Functionality */
+.policy-card {
+    position: relative;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 15px;
+    padding: 25px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.policy-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    border-color: #667eea;
+}
+
+.policy-card.selected-for-deletion {
+    border-color: #e53e3e;
+    background: #fef5f5;
+    box-shadow: 0 5px 15px rgba(229, 62, 62, 0.2);
+}
+
+/* Delete Checkbox Styles */
+.delete-checkbox {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    z-index: 10;
+    accent-color: #e53e3e;
+    transform: scale(1.2);
+}
+
+.delete-checkbox:checked {
+    background-color: #e53e3e;
+}
+
+/* Bulk Delete Controls */
+#bulkDeleteControls {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border: 2px solid #fca5a5;
+    border-radius: 15px;
     padding: 20px;
-    background: white;
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease;
 }
 
-.policy-category-header {
-    color: #2d3748;
-    margin-bottom: 15px;
-    font-size: 1.1rem;
-    border-bottom: 2px solid #667eea;
-    padding-bottom: 8px;
-}
-
-.students-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 15px;
-}
-
-.student-card {
-    border: 1px solid #cbd5e0;
-    border-radius: 8px;
-    padding: 15px;
-    background: #f8f9fa;
-    transition: transform 0.3s ease;
-}
-
-.student-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.student-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+#bulkDeleteControls h4 {
+    color: #c53030;
     margin-bottom: 10px;
+    font-weight: 600;
 }
 
-.student-avatar-small {
-    width: 35px;
-    height: 35px;
-    background: linear-gradient(45deg, #667eea, #764ba2);
-    border-radius: 50%;
+.bulk-delete-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bulk-delete-actions button {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.bulk-delete-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.bulk-delete-actions button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Delete Button Styles */
+.delete-btn {
+    background: linear-gradient(135deg, #e53e3e, #c53030);
     color: white;
-    font-weight: bold;
-    font-size: 14px;
-}
-
-.student-info strong {
-    color: #2d3748;
-    font-size: 1.0em;
-}
-
-.student-info small {
-    color: #718096;
-    font-size: 0.9em;
-}
-
-.upload-item {
-    font-size: 0.9rem;
-    color: #4a5568;
-    margin: 5px 0;
-    padding: 8px;
-    background: white;
+    border: none;
+    padding: 6px 12px;
     border-radius: 5px;
-    border-left: 3px solid #667eea;
+    cursor: pointer;
+    font-size: 0.8em;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
-.upload-item strong {
-    color: #2d3748;
+.delete-btn:hover {
+    background: linear-gradient(135deg, #c53030, #9c2626);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(229, 62, 62, 0.3);
 }
 
-.upload-item small {
-    color: #718096;
+.delete-btn:active {
+    transform: translateY(0);
+}
+
+.delete-btn.small {
+    padding: 4px 8px;
+    font-size: 0.75em;
+}
+
+/* Project Management Controls */
+.project-management-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 15px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.project-management-controls span {
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 600;
 }
 
 /* Controls Section */
@@ -399,11 +709,6 @@ body {
     gap: 20px;
     align-items: center;
     flex-wrap: wrap;
-    margin-bottom: 15px;
-}
-
-.control-group:last-child {
-    margin-bottom: 0;
 }
 
 /* Form Elements */
@@ -497,7 +802,16 @@ button:disabled {
     font-size: 0.9em;
 }
 
-/* Dashboard Layout */
+/* Policy Page Specific Styles */
+.policy-info-section {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
 .dashboard {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -526,9 +840,7 @@ button:disabled {
     text-align: center;
 }
 
-/* Metrics Section */
 .consistency-metrics {
-    grid-column: span 2;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border-radius: 20px;
@@ -575,57 +887,15 @@ button:disabled {
     border-radius: 20px;
     padding: 30px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
 }
 
-.student-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 15px 20px;
-    margin: 10px 0;
-    background: rgba(102, 126, 234, 0.1);
-    border-radius: 10px;
-    transition: all 0.3s ease;
-}
-
-.student-row:hover {
-    background: rgba(102, 126, 234, 0.2);
-    transform: translateX(5px);
-}
-
-.student-name {
-    font-weight: 600;
-    color: #333;
-    min-width: 150px;
-}
-
-.label-distribution {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    flex: 1;
-    justify-content: center;
-}
-
-.label-pill {
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.8em;
-    font-weight: 600;
-    color: white;
-    white-space: nowrap;
-}
-
-.agreement-score {
-    font-weight: 700;
-    font-size: 1.1em;
-    color: #667eea;
-    min-width: 80px;
-    text-align: right;
+.detailed-view:last-child {
+    margin-bottom: 0;
 }
 
 /* Chart Sizing */
-#labelChart, #consistencyChart {
+canvas {
     width: 100% !important;
     height: 300px !important;
 }
@@ -652,11 +922,6 @@ button:disabled {
     }
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
 /* Utility Classes */
 .hidden {
     display: none !important;
@@ -667,20 +932,56 @@ button:disabled {
     pointer-events: none;
 }
 
-.error {
-    color: #e74c3c;
-    background-color: rgba(231, 76, 60, 0.1);
-    border: 1px solid #e74c3c;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
+/* Notification Styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    font-weight: bold;
+    max-width: 400px;
+    animation: slideIn 0.3s ease;
 }
 
-.success {
-    color: #27ae60;
-    background-color: rgba(39, 174, 96, 0.1);
-    border: 1px solid #27ae60;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
+.notification.success {
+    background: linear-gradient(45deg, #48bb78, #38a169);
+    color: white;
+}
+
+.notification.error {
+    background: linear-gradient(45deg, #e53e3e, #c53030);
+    color: white;
+}
+
+/* Responsive Design Improvements */
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+    
+    .upload-methods {
+        grid-template-columns: 1fr;
+    }
+    
+    .control-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .project-management-controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .bulk-delete-actions {
+        justify-content: center;
+    }
 }

@@ -1,426 +1,372 @@
-// Chart Management for Privacy Policy Dashboard
+// Charts.js - Policy-Focused Dashboard Charts
 
-// Global chart instances
-let labelChart = null;
-let consistencyChart = null;
-
-/**
- * Initialize all charts when the page loads
- */
-function initializeCharts() {
-    initializeLabelChart();
-    initializeConsistencyChart();
-}
-
-/**
- * Initialize the label distribution donut chart
- */
-function initializeLabelChart() {
-    const canvas = document.getElementById('labelChart');
-    if (!canvas) {
-        console.error('Label chart canvas not found');
-        return;
-    }
-
-    const ctx = canvas.getContext('2d');
+(function() {
+    'use strict';
     
-    labelChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: [],
-            datasets: [{
-                data: [],
-                backgroundColor: [],
-                borderWidth: 0,
-                hoverOffset: 10,
-                hoverBorderWidth: 3,
-                hoverBorderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        usePointStyle: true,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            },
-            animation: {
-                animateRotate: true,
-                duration: 1000
-            }
+    // Chart instances storage
+    const chartInstances = {};
+    
+    // GKCCI Parameters with colors
+    const GKCCI_COLORS = {
+        'Sender': '#FF6B6B',
+        'Subject': '#4ECDC4', 
+        'Information Type': '#45B7D1',
+        'Recipient': '#96CEB4',
+        'Aim': '#FFEAA7',
+        'Condition': '#DDA0DD',
+        'Modalities': '#98D8C8',
+        'Consequence': '#F7DC6F'
+    };
+    
+    // Initialize charts when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Only initialize if Chart.js is available
+        if (typeof Chart !== 'undefined') {
+            setupChartDefaults();
+            console.log('Charts.js initialized for policy dashboard');
+        } else {
+            console.warn('Chart.js library not loaded');
         }
     });
-}
-
-/**
- * Initialize the consistency/agreement line chart
- */
-function initializeConsistencyChart() {
-    const canvas = document.getElementById('consistencyChart');
-    if (!canvas) {
-        console.error('Consistency chart canvas not found');
-        return;
-    }
-
-    const ctx = canvas.getContext('2d');
     
-    consistencyChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Agreement Score',
-                data: [],
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#667eea',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
+    function setupChartDefaults() {
+        Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+        Chart.defaults.color = '#333';
+        Chart.defaults.plugins.legend.position = 'bottom';
+        Chart.defaults.plugins.legend.labels.padding = 20;
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.responsive = true;
+        Chart.defaults.maintainAspectRatio = false;
+    }
+    
+    function createGKCCIParameterChart(canvasId, data) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+        }
+        
+        const labels = Object.keys(GKCCI_COLORS);
+        const values = labels.map(label => data[label] || 0);
+        const colors = labels.map(label => GKCCI_COLORS[label]);
+        
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                    hoverBorderWidth: 3,
+                    hoverBorderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
                         }
                     },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                },
-                x: {
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Agreement: ${context.parsed.y.toFixed(1)}%`;
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            }
                         }
                     }
+                },
+                elements: {
+                    arc: {
+                        borderWidth: 2
+                    }
                 }
-            },
-            animation: {
-                duration: 1000,
-                easing: 'easeInOutQuart'
             }
-        }
-    });
-}
-
-/**
- * Update the label distribution chart with current data
- */
-function updateLabelChart() {
-    if (!labelChart || !window.labelingData.annotations) return;
-
-    const labelCounts = {};
-    
-    // Count occurrences of each label
-    window.labelingData.annotations.forEach(annotation => {
-        const label = annotation.label;
-        labelCounts[label] = (labelCounts[label] || 0) + 1;
-    });
-
-    // Sort labels by count (descending)
-    const sortedLabels = Object.entries(labelCounts)
-        .sort(([,a], [,b]) => b - a)
-        .reduce((r, [k, v]) => ({ ...r, [k]: v }), {});
-
-    const labels = Object.keys(sortedLabels);
-    const data = Object.values(sortedLabels);
-    const colors = labels.map(label => window.labelColors[label] || '#999999');
-
-    // Update chart data
-    labelChart.data.labels = labels;
-    labelChart.data.datasets[0].data = data;
-    labelChart.data.datasets[0].backgroundColor = colors;
-    
-    labelChart.update('active');
-}
-
-/**
- * Update the consistency chart with agreement data over time
- */
-function updateConsistencyChart() {
-    if (!consistencyChart || !window.labelingData.annotations) return;
-
-    const monthlyAgreement = {};
-    
-    // Group annotations by month and calculate average confidence
-    window.labelingData.annotations.forEach(annotation => {
-        const date = new Date(annotation.timestamp);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        
-        if (!monthlyAgreement[monthKey]) {
-            monthlyAgreement[monthKey] = [];
-        }
-        monthlyAgreement[monthKey].push(parseFloat(annotation.confidence));
-    });
-
-    // Sort months chronologically
-    const sortedMonths = Object.keys(monthlyAgreement).sort();
-    
-    // Calculate average agreement for each month
-    const agreementScores = sortedMonths.map(month => {
-        const scores = monthlyAgreement[month];
-        return (scores.reduce((sum, score) => sum + score, 0) / scores.length);
-    });
-
-    // Format month labels for display
-    const monthLabels = sortedMonths.map(month => {
-        const date = new Date(month + '-01');
-        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    });
-
-    // Update chart data
-    consistencyChart.data.labels = monthLabels;
-    consistencyChart.data.datasets[0].data = agreementScores;
-    
-    consistencyChart.update('active');
-}
-
-/**
- * Update consistency metrics displayed in the dashboard
- */
-function updateMetrics() {
-    const annotations = window.labelingData.annotations;
-    if (!annotations || annotations.length === 0) {
-        // Set default values when no data
-        updateMetricElement('overallAgreement', '0%');
-        updateMetricElement('kappaScore', '0.00');
-        updateMetricElement('totalLabels', '0');
-        updateMetricElement('activeAnnotators', '0');
-        return;
-    }
-
-    // Calculate overall agreement (average confidence)
-    const totalLabels = annotations.length;
-    const avgConfidence = annotations.reduce((sum, ann) => sum + parseFloat(ann.confidence), 0) / totalLabels;
-    
-    // Count unique annotators
-    const activeAnnotators = new Set(annotations.map(ann => ann.studentId)).size;
-    
-    // Calculate Cohen's Kappa (simplified approximation)
-    const kappaScore = calculateKappa(annotations);
-    
-    // Update the displayed metrics
-    updateMetricElement('overallAgreement', avgConfidence.toFixed(1) + '%');
-    updateMetricElement('kappaScore', kappaScore);
-    updateMetricElement('totalLabels', totalLabels.toLocaleString());
-    updateMetricElement('activeAnnotators', activeAnnotators.toString());
-}
-
-/**
- * Helper function to update a metric element safely
- * @param {string} elementId - ID of the element to update
- * @param {string} value - New value to display
- */
-function updateMetricElement(elementId, value) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = value;
-    }
-}
-
-/**
- * Update student performance details
- */
-function updateStudentDetails() {
-    const studentDetails = document.getElementById('studentDetails');
-    if (!studentDetails || !window.labelingData.students) return;
-
-    studentDetails.innerHTML = '';
-
-    // If no students, show empty state
-    if (window.labelingData.students.length === 0) {
-        studentDetails.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No student data available. Please load some data first.</p>';
-        return;
-    }
-
-    window.labelingData.students.forEach(student => {
-        // Find annotations for this student
-        const studentAnnotations = window.labelingData.annotations.filter(ann => {
-            return ann.studentId === student.id || 
-                   ann.studentId === student.name || 
-                   ann.studentId === student.email;
         });
-
-        // Count labels for this student
-        const labelCounts = {};
-        studentAnnotations.forEach(ann => {
-            labelCounts[ann.label] = (labelCounts[ann.label] || 0) + 1;
-        });
-
-        // Calculate average confidence for this student
-        const avgConfidence = studentAnnotations.length > 0 ? 
-            studentAnnotations.reduce((sum, ann) => sum + parseFloat(ann.confidence), 0) / studentAnnotations.length : 0;
-
-        // Create student row element
-        const row = document.createElement('div');
-        row.className = 'student-row';
         
-        // Get top 3 labels for this student
-        const topLabels = Object.entries(labelCounts)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 3);
-
-        row.innerHTML = `
-            <div class="student-name">${student.name}</div>
-            <div class="label-distribution">
-                ${topLabels.map(([label, count]) => 
-                    `<span class="label-pill" style="background-color: ${window.labelColors[label] || '#999'}">${label}: ${count}</span>`
-                ).join('')}
-                ${topLabels.length === 0 ? '<span style="color: #999;">No labels yet</span>' : ''}
-            </div>
-            <div class="agreement-score">${avgConfidence.toFixed(1)}%</div>
-        `;
+        return chartInstances[canvasId];
+    }
+    
+    function createTimelineChart(canvasId, data) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
         
-        studentDetails.appendChild(row);
-    });
-}
-
-/**
- * Update all visualizations (called after data changes)
- */
-function updateVisualizations() {
-    updateLabelChart();
-    updateConsistencyChart();
-    updateMetrics();
-    updateStudentDetails();
-}
-
-/**
- * Create a simple bar chart for comparing students (future enhancement)
- * @param {string} canvasId - ID of the canvas element
- * @param {Array} students - Array of student data
- */
-function createStudentComparisonChart(canvasId, students) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas || !students || students.length === 0) return;
-
-    const ctx = canvas.getContext('2d');
-    
-    // Prepare data for student comparison
-    const studentNames = students.map(s => s.name.split(' ')[0]); // First names only
-    const studentScores = students.map(s => parseFloat(s.accuracy));
-    
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: studentNames,
-            datasets: [{
-                label: 'Accuracy Score',
-                data: studentScores,
-                backgroundColor: 'rgba(102, 126, 234, 0.6)',
-                borderColor: '#667eea',
-                borderWidth: 2,
-                borderRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return `Accuracy: ${context.parsed.y.toFixed(1)}%`;
-                        }
-                    }
-                }
-            }
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
         }
-    });
-}
-
-/**
- * Resize charts when window size changes
- */
-function handleChartResize() {
-    if (labelChart) labelChart.resize();
-    if (consistencyChart) consistencyChart.resize();
-}
-
-/**
- * Destroy charts when cleaning up
- */
-function destroyCharts() {
-    if (labelChart) {
-        labelChart.destroy();
-        labelChart = null;
-    }
-    if (consistencyChart) {
-        consistencyChart.destroy();
-        consistencyChart = null;
-    }
-}
-
-// Event listeners for responsive design
-window.addEventListener('resize', debounce(handleChartResize, 300));
-
-// Initialize charts when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for Chart.js to be available
-    if (typeof Chart !== 'undefined') {
-        initializeCharts();
-    } else {
-        // If Chart.js isn't loaded yet, wait for it
-        const checkChart = setInterval(() => {
-            if (typeof Chart !== 'undefined') {
-                clearInterval(checkChart);
-                initializeCharts();
+        
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels || [],
+                datasets: [{
+                    label: 'Annotations Over Time',
+                    data: data.values || [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        border: {
+                            color: '#e1e5e9'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        border: {
+                            color: '#e1e5e9'
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: '#667eea'
+                    }
+                }
             }
-        }, 100);
+        });
+        
+        return chartInstances[canvasId];
     }
-});
+    
+    function createStudentContributionChart(canvasId, studentData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+        }
+        
+        const students = Object.keys(studentData);
+        const contributions = students.map(student => studentData[student]);
+        
+        // Generate colors for students
+        const colors = students.map((_, index) => {
+            const hue = (index * 137.508) % 360; // Golden angle approximation
+            return `hsl(${hue}, 70%, 60%)`;
+        });
+        
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: students,
+                datasets: [{
+                    label: 'Annotations',
+                    data: contributions,
+                    backgroundColor: colors,
+                    borderColor: colors.map(color => color.replace('60%', '40%')),
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        border: {
+                            color: '#e1e5e9'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        border: {
+                            color: '#e1e5e9'
+                        }
+                    }
+                }
+            }
+        });
+        
+        return chartInstances[canvasId];
+    }
+    
+    function createAgreementChart(canvasId, agreementData) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+        }
+        
+        // Generate sample agreement data if none provided
+        const defaultData = Object.keys(GKCCI_COLORS).map(() => Math.random() * 30 + 70);
+        
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: Object.keys(GKCCI_COLORS),
+                datasets: [{
+                    label: 'Inter-Annotator Agreement',
+                    data: agreementData || defaultData,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: '#667eea',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                return `Agreement: ${context.parsed.r.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            stepSize: 20,
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        angleLines: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+        
+        return chartInstances[canvasId];
+    }
+    
+    // Utility function to destroy all charts
+    function destroyAllCharts() {
+        Object.values(chartInstances).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        Object.keys(chartInstances).forEach(key => {
+            delete chartInstances[key];
+        });
+    }
+    
+    // Utility function to resize all charts
+    function resizeAllCharts() {
+        Object.values(chartInstances).forEach(chart => {
+            if (chart) chart.resize();
+        });
+    }
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        setTimeout(resizeAllCharts, 100);
+    });
+    
+    // Public API
+    window.PolicyCharts = {
+        createGKCCIParameterChart: createGKCCIParameterChart,
+        createTimelineChart: createTimelineChart,
+        createStudentContributionChart: createStudentContributionChart,
+        createAgreementChart: createAgreementChart,
+        destroyAllCharts: destroyAllCharts,
+        resizeAllCharts: resizeAllCharts,
+        getChartInstance: function(canvasId) {
+            return chartInstances[canvasId];
+        }
+    };
+    
+})();

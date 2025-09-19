@@ -1,290 +1,394 @@
-// Utility Functions for Privacy Policy Dashboard
+// Updated Utility Functions for Privacy Policy Dashboard
 
 /**
- * Global data structure for the application
+ * GKCCI Framework Parameters with colors
  */
-window.labelingData = {
-    students: [],
-    labels: [],
-    projects: [],
-    annotations: []
-};
-
-/**
- * Color scheme for different label types
- */
-window.labelColors = {
-    'Personal Data Collection': '#FF6B6B',
-    'Data Sharing': '#4ECDC4',
-    'User Rights': '#45B7D1',
-    'Data Retention': '#96CEB4',
-    'Security Measures': '#FFEAA7',
-    'Third Party': '#DDA0DD',
-    'Cookies': '#98D8C8',
-    'Contact Info': '#F7DC6F',
-    'Data Processing': '#FF8A80',
-    'User Consent': '#A5D6A7',
-    'Data Transfer': '#FFCC80',
-    'Privacy Rights': '#CE93D8'
-};
-
-/**
- * Utility function to show status messages
- * @param {string} message - Main status message
- * @param {string} details - Additional details
- */
-function showStatus(message, details = '') {
-    const statusDiv = document.getElementById('uploadStatus');
-    if (!statusDiv) return;
-    
-    const statusText = statusDiv.querySelector('.status-text');
-    const statusDetails = statusDiv.querySelector('.status-details');
-    
-    if (statusText) statusText.textContent = message;
-    if (statusDetails) statusDetails.textContent = details;
-    statusDiv.style.display = 'block';
-}
-
-/**
- * Hide status messages
- */
-function hideStatus() {
-    const statusDiv = document.getElementById('uploadStatus');
-    if (statusDiv) {
-        statusDiv.style.display = 'none';
-    }
-}
-
-/**
- * Show data summary
- * @param {number} taskCount - Number of tasks
- * @param {number} annotationCount - Number of annotations
- * @param {number} annotatorCount - Number of annotators
- * @param {number} labelTypeCount - Number of label types
- */
-function showDataSummary(taskCount, annotationCount, annotatorCount, labelTypeCount) {
-    const elements = {
-        taskCount: document.getElementById('taskCount'),
-        annotationCount: document.getElementById('annotationCount'),
-        annotatorCount: document.getElementById('annotatorCount'),
-        labelTypeCount: document.getElementById('labelTypeCount'),
-        dataSummary: document.getElementById('dataSummary')
+if (typeof window.gkcciParameters === 'undefined') {
+    window.gkcciParameters = {
+        'Sender': '#FF6B6B',
+        'Subject': '#4ECDC4', 
+        'Information Type': '#45B7D1',
+        'Recipient': '#96CEB4',
+        'Aim': '#FFEAA7',
+        'Condition': '#DDA0DD',
+        'Modalities': '#98D8C8',
+        'Consequence': '#F7DC6F'
     };
-    
-    if (elements.taskCount) elements.taskCount.textContent = taskCount.toLocaleString();
-    if (elements.annotationCount) elements.annotationCount.textContent = annotationCount.toLocaleString();
-    if (elements.annotatorCount) elements.annotatorCount.textContent = annotatorCount;
-    if (elements.labelTypeCount) elements.labelTypeCount.textContent = labelTypeCount;
-    if (elements.dataSummary) elements.dataSummary.style.display = 'block';
 }
 
 /**
- * Generate random sample data for testing
+ * Initialize labeling data structure if not exists
  */
-function generateSampleData() {
-    const students = [
-        'Sarah Johnson', 'Michael Chen', 'Emily Rodriguez', 'David Kim',
-        'Jessica Taylor', 'Robert Wilson', 'Amanda Davis', 'James Anderson',
-        'Lisa Parker', 'Thomas Brown', 'Maria Garcia', 'Ryan Miller'
-    ];
+if (typeof window.labelingData === 'undefined') {
+    window.labelingData = {
+        students: [],
+        labels: [],
+        projects: [],
+        annotations: []
+    };
+}
 
-    const labelTypes = Object.keys(window.labelColors);
-    const projects = ['Privacy Policy Analysis', 'GDPR Compliance Review', 'Terms of Service Study', 'CCPA Analysis'];
+/**
+ * Policy management functions
+ */
+window.PolicyManager = {
+    
+    /**
+     * Get all policies from localStorage
+     */
+    getAllPolicies: function() {
+        return JSON.parse(localStorage.getItem('gkcci_policy_documents') || '{}');
+    },
+    
+    /**
+     * Get specific policy data
+     */
+    getPolicy: function(policyName) {
+        const policies = this.getAllPolicies();
+        return policies[policyName] || null;
+    },
+    
+    /**
+     * Save policy data to localStorage
+     */
+    savePolicy: function(policyName, policyData) {
+        const policies = this.getAllPolicies();
+        policies[policyName] = policyData;
+        localStorage.setItem('gkcci_policy_documents', JSON.stringify(policies));
+    },
+    
+    /**
+     * Check if student has required information
+     */
+    validateStudentInfo: function() {
+        const name = document.getElementById('studentName')?.value?.trim();
+        const policy = document.getElementById('policyName')?.value?.trim();
+        
+        return {
+            isValid: !!(name && policy),
+            name: name,
+            policy: policy,
+            email: document.getElementById('studentEmail')?.value?.trim(),
+            university: document.getElementById('university')?.value
+        };
+    },
+    
+    /**
+     * Get policy statistics
+     */
+    getPolicyStats: function(policyName) {
+        const policy = this.getPolicy(policyName);
+        if (!policy) return null;
+        
+        const contributors = Object.keys(policy.contributors).length;
+        const totalAnnotations = policy.totalAnnotations || 0;
+        const avgAnnotationsPerContributor = contributors > 0 ? Math.round(totalAnnotations / contributors) : 0;
+        
+        return {
+            contributors: contributors,
+            totalAnnotations: totalAnnotations,
+            avgAnnotationsPerContributor: avgAnnotationsPerContributor,
+            createdAt: policy.createdAt,
+            lastUpdated: policy.lastUpdated,
+            contributorDetails: policy.contributors
+        };
+    },
+    
+    /**
+     * Get all contributors across all policies
+     */
+    getAllContributors: function() {
+        const policies = this.getAllPolicies();
+        const contributors = new Set();
+        
+        Object.values(policies).forEach(policy => {
+            Object.keys(policy.contributors).forEach(contributor => {
+                contributors.add(contributor);
+            });
+        });
+        
+        return Array.from(contributors);
+    },
+    
+    /**
+     * Search policies by name
+     */
+    searchPolicies: function(searchTerm) {
+        const policies = this.getAllPolicies();
+        const term = searchTerm.toLowerCase();
+        
+        return Object.keys(policies).filter(policyName => 
+            policyName.toLowerCase().includes(term)
+        );
+    }
+};
 
-    // Create student records
-    window.labelingData.students = students.map((name, index) => ({
-        id: index + 1,
-        name: name,
-        email: `${name.toLowerCase().replace(' ', '.')}@uiowa.edu`,
-        university: 'University of Iowa',
-        totalLabels: Math.floor(Math.random() * 300) + 100,
-        accuracy: (Math.random() * 20 + 80).toFixed(1)
-    }));
+/**
+ * UI Helper Functions
+ */
+window.UIHelpers = {
+    
+    /**
+     * Show error message
+     */
+    showError: function(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #e53e3e, #c53030);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-weight: bold;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 4000);
+    },
+    
+    /**
+     * Show success message
+     */
+    showSuccess: function(message) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, #48bb78, #38a169);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-weight: bold;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 3000);
+    },
+    
+    /**
+     * Show loading status
+     */
+    showStatus: function(message, icon) {
+        const status = document.getElementById('uploadStatus');
+        if (status) {
+            const iconElement = status.querySelector('.status-icon');
+            const textElement = status.querySelector('.status-text');
+            
+            if (iconElement) iconElement.textContent = icon || '⏳';
+            if (textElement) textElement.textContent = message;
+            
+            status.style.display = 'block';
+        }
+    },
+    
+    /**
+     * Hide loading status
+     */
+    hideStatus: function() {
+        const status = document.getElementById('uploadStatus');
+        if (status) status.style.display = 'none';
+    },
+    
+    /**
+     * Update upload section visibility
+     */
+    updateUploadVisibility: function() {
+        const validation = window.PolicyManager.validateStudentInfo();
+        
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        const uploadInterface = document.getElementById('uploadInterface');
+        
+        if (uploadPlaceholder && uploadInterface) {
+            uploadPlaceholder.style.display = validation.isValid ? 'none' : 'block';
+            uploadInterface.style.display = validation.isValid ? 'block' : 'none';
+        }
+        
+        // Update validation indicators
+        this.updateValidationIndicators(validation);
+    },
+    
+    /**
+     * Update validation check marks
+     */
+    updateValidationIndicators: function(validation) {
+        const nameCheck = document.getElementById('nameCheck');
+        const policyCheck = document.getElementById('policyCheck');
+        const universityCheck = document.getElementById('universityCheck');
+        
+        if (nameCheck) nameCheck.textContent = validation.name ? '✅' : '❌';
+        if (policyCheck) policyCheck.textContent = validation.policy ? '✅' : '❌';
+        if (universityCheck) universityCheck.textContent = validation.university ? '✅' : '❓';
+    }
+};
 
-    window.labelingData.labels = labelTypes;
-    window.labelingData.projects = projects;
+/**
+ * Data Processing Functions
+ */
+window.DataProcessor = {
+    
+    /**
+     * Process Label Studio JSON export
+     */
+    processLabelStudioData: function(data) {
+        let tasks = [];
+        
+        if (Array.isArray(data)) {
+            tasks = data;
+        } else if (data.tasks) {
+            tasks = data.tasks;
+        } else if (data.results) {
+            tasks = data.results;
+        } else {
+            tasks = [data];
+        }
+        
+        const annotations = [];
+        const annotators = new Set();
+        const labelTypes = new Set();
+        const validLabels = ['Sender', 'Subject', 'Information Type', 'Recipient', 'Aim', 'Condition', 'Modalities', 'Consequence'];
+        
+        tasks.forEach((task, taskIndex) => {
+            if (task.annotations && Array.isArray(task.annotations)) {
+                task.annotations.forEach((annotation) => {
+                    let annotatorName = 'Unknown_Annotator';
+                    const completedBy = annotation.completed_by;
+                    
+                    if (typeof completedBy === 'object' && completedBy !== null) {
+                        annotatorName = completedBy.email || completedBy.username || 
+                                     completedBy.first_name || `User_${completedBy.id}`;
+                    } else if (typeof completedBy === 'number') {
+                        annotatorName = `Law_Student_${completedBy}`;
+                    } else if (typeof completedBy === 'string') {
+                        annotatorName = completedBy;
+                    }
+                    
+                    annotators.add(annotatorName);
+                    
+                    if (annotation.result && Array.isArray(annotation.result)) {
+                        annotation.result.forEach((result) => {
+                            if (result.value && result.value.labels && Array.isArray(result.value.labels)) {
+                                result.value.labels.forEach(label => {
+                                    if (validLabels.includes(label)) {
+                                        labelTypes.add(label);
+                                        annotations.push({
+                                            id: `${taskIndex}_${annotation.id}_${result.id || Math.random()}_${label}`,
+                                            taskId: task.id || taskIndex,
+                                            annotationId: annotation.id,
+                                            studentId: annotatorName,
+                                            label: label,
+                                            confidence: annotation.score || (85 + Math.random() * 10).toFixed(1),
+                                            timestamp: annotation.created_at || annotation.updated_at || new Date().toISOString(),
+                                            startOffset: result.value.start,
+                                            endOffset: result.value.end
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        
+        return {
+            annotations: annotations,
+            annotators: Array.from(annotators),
+            labelTypes: Array.from(labelTypes),
+            taskCount: tasks.length
+        };
+    },
+    
+    /**
+     * Count annotations in data
+     */
+    countAnnotations: function(data) {
+        let count = 0;
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                if (item.annotations && Array.isArray(item.annotations)) {
+                    count += item.annotations.length;
+                } else if (item.result) {
+                    count++;
+                }
+            });
+        }
+        return count;
+    }
+};
 
-    // Generate sample annotations
-    window.labelingData.annotations = [];
-    for (let i = 0; i < 1500; i++) {
-        window.labelingData.annotations.push({
-            id: i + 1,
-            studentId: Math.floor(Math.random() * students.length) + 1,
-            label: labelTypes[Math.floor(Math.random() * labelTypes.length)],
-            confidence: (Math.random() * 30 + 70).toFixed(1),
-            timestamp: generateRandomDate().toISOString(),
-            project: projects[Math.floor(Math.random() * projects.length)],
-            taskData: {
-                text: generateSamplePrivacyText()
-            },
-            // Add GKCCI-specific metadata
-            policySource: ['Company Website', 'Mobile App', 'Terms of Service', 'Cookie Policy'][Math.floor(Math.random() * 4)],
-            jurisdiction: ['US', 'EU', 'UK', 'CA'][Math.floor(Math.random() * 4)]
+/**
+ * Get color for GKCCI parameter
+ */
+function getGKCCIColor(parameter) {
+    return window.gkcciParameters[parameter] || '#999999';
+}
+
+/**
+ * Calculate GKCCI parameter distribution
+ */
+function calculateGKCCIDistribution(annotations) {
+    const distribution = {};
+    Object.keys(window.gkcciParameters).forEach(param => {
+        distribution[param] = 0;
+    });
+    
+    if (annotations && Array.isArray(annotations)) {
+        annotations.forEach(ann => {
+            if (distribution.hasOwnProperty(ann.label)) {
+                distribution[ann.label]++;
+            }
         });
     }
+    
+    return distribution;
+}
 
-    updateVisualizations();
-    populateStudentFilter();
-    showDataSummary(
-        Math.floor(window.labelingData.annotations.length / 3),
-        window.labelingData.annotations.length,
-        window.labelingData.students.length,
-        labelTypes.length
+/**
+ * Filter annotations by policy
+ */
+function filterAnnotationsByPolicy(annotations, policyName) {
+    if (!annotations || policyName === 'all') return annotations;
+    
+    return annotations.filter(ann => ann.project === policyName);
+}
+
+/**
+ * Filter annotations by student
+ */
+function filterAnnotationsByStudent(annotations, studentName) {
+    if (!annotations || studentName === 'all') return annotations;
+    
+    return annotations.filter(ann => 
+        ann.studentId === studentName || 
+        ann.studentEmail === studentName
     );
 }
 
 /**
- * Generate a random date within the last year
- * @returns {Date} Random date
- */
-function generateRandomDate() {
-    const start = new Date(2024, 0, 1);
-    const end = new Date();
-    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-}
-
-/**
- * Generate sample privacy policy text
- * @returns {string} Sample text
- */
-function generateSamplePrivacyText() {
-    const samples = [
-        "We collect personal information when you register for our services...",
-        "Your data may be shared with third-party partners for marketing purposes...",
-        "You have the right to request deletion of your personal data...",
-        "We retain your information for as long as necessary to provide our services...",
-        "We implement appropriate security measures to protect your data...",
-        "Cookies are used to enhance your browsing experience...",
-        "You can contact us at privacy@company.com for any privacy-related inquiries...",
-        "We may transfer your data to servers located outside your country...",
-        "By using our service, you consent to our data processing practices...",
-        "We process your data based on legitimate business interests..."
-    ];
-    return samples[Math.floor(Math.random() * samples.length)];
-}
-
-/**
- * Export results as JSON file
- */
-function exportResults() {
-    const results = {
-        exportDate: new Date().toISOString(),
-        summary: {
-            totalLabels: window.labelingData.annotations.length,
-            activeAnnotators: window.labelingData.students.length,
-            overallAgreement: document.getElementById('overallAgreement')?.textContent || 'N/A',
-            kappaScore: document.getElementById('kappaScore')?.textContent || 'N/A'
-        },
-        students: window.labelingData.students,
-        annotations: window.labelingData.annotations,
-        projects: window.labelingData.projects,
-        labelTypes: window.labelingData.labels
-    };
-
-    const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `labeling_analysis_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-/**
- * Clear all data
- */
-function clearData() {
-    if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-        window.labelingData = {
-            students: [],
-            labels: [],
-            projects: [],
-            annotations: []
-        };
-        
-        updateVisualizations();
-        
-        const dataSummary = document.getElementById('dataSummary');
-        if (dataSummary) dataSummary.style.display = 'none';
-        
-        const studentFilter = document.getElementById('studentFilter');
-        if (studentFilter) studentFilter.innerHTML = '<option value="all">All Students</option>';
-        
-        alert('Data cleared successfully.');
-    }
-}
-
-/**
- * Populate student filter dropdown
- */
-function populateStudentFilter() {
-    const studentFilter = document.getElementById('studentFilter');
-    if (!studentFilter) return;
-    
-    studentFilter.innerHTML = '<option value="all">All Students</option>';
-    
-    window.labelingData.students.forEach(student => {
-        const option = document.createElement('option');
-        option.value = student.id;
-        option.textContent = student.name;
-        studentFilter.appendChild(option);
-    });
-}
-
-/**
- * Calculate Cohen's Kappa (simplified approximation)
- * @param {Array} annotations - Array of annotations
- * @returns {number} Kappa score
- */
-function calculateKappa(annotations) {
-    // This is a simplified calculation
-    // In a real implementation, you'd need pairs of annotations for the same task
-    const avgAgreement = annotations.reduce((sum, ann) => sum + parseFloat(ann.confidence), 0) / annotations.length;
-    const expectedAgreement = 1 / window.labelingData.labels.length; // Random chance
-    return ((avgAgreement / 100 - expectedAgreement) / (1 - expectedAgreement)).toFixed(2);
-}
-
-/**
- * Assign colors to new labels dynamically
- * @param {Array} labels - Array of label names
- */
-function assignLabelColors(labels) {
-    const defaultColors = [
-        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', 
-        '#98D8C8', '#F7DC6F', '#FF8A80', '#A5D6A7', '#FFCC80', '#CE93D8',
-        '#90CAF9', '#A5D6A7', '#FFAB91', '#F8BBD9', '#C5E1A5', '#FFE082'
-    ];
-    
-    labels.forEach((label, index) => {
-        if (!window.labelColors[label]) {
-            window.labelColors[label] = defaultColors[index % defaultColors.length];
-        }
-    });
-}
-
-/**
- * Format date for display
- * @param {string} dateString - ISO date string
- * @returns {string} Formatted date
- */
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-/**
  * Debounce function for search/filter inputs
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in milliseconds
- * @returns {Function} Debounced function
  */
-function debounce(func, wait) {
+function createDebounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
         const later = () => {
@@ -297,33 +401,92 @@ function debounce(func, wait) {
 }
 
 /**
- * Show error message
- * @param {string} message - Error message
+ * Format date for display
  */
-function showError(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error';
-    errorDiv.textContent = message;
+function formatDate(dateString) {
+    if (!dateString) return 'Unknown';
     
-    const container = document.querySelector('.container');
-    if (container && container.firstChild) {
-        container.insertBefore(errorDiv, container.firstChild);
-        setTimeout(() => errorDiv.remove(), 5000);
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return 'Invalid Date';
     }
 }
 
 /**
- * Show success message
- * @param {string} message - Success message
+ * Format time ago
  */
-function showSuccess(message) {
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success';
-    successDiv.textContent = message;
+function timeAgo(dateString) {
+    if (!dateString) return 'Unknown';
     
-    const container = document.querySelector('.container');
-    if (container && container.firstChild) {
-        container.insertBefore(successDiv, container.firstChild);
-        setTimeout(() => successDiv.remove(), 3000);
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+        if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+        
+        return formatDate(dateString);
+    } catch (error) {
+        return 'Unknown';
     }
+}
+
+/**
+ * Generate sample GKCCI privacy policy text
+ */
+function generateSampleGKCCIText() {
+    const samples = [
+        "We (Sender) collect your email address (Information Type) about user accounts (Subject) and send it to marketing partners (Recipient) for promotional campaigns (Aim) under user consent (Condition) with automated processing (Modalities) resulting in targeted advertisements (Consequence).",
+        "The platform (Sender) processes location data (Information Type) regarding user movements (Subject) and shares it with analytics services (Recipient) for business intelligence (Aim) when users opt-in (Condition) via secure APIs (Modalities) enabling personalized recommendations (Consequence).",
+        "Your app (Sender) collects usage analytics (Information Type) about user behavior (Subject) and transmits them to research institutions (Recipient) for academic studies (Aim) under anonymization procedures (Condition) with statistical analysis (Modalities) resulting in research publications (Consequence)."
+    ];
+    return samples[Math.floor(Math.random() * samples.length)];
+}
+
+/**
+ * Initialize utility functions
+ */
+function initializeUtilities() {
+    console.log('GKCCI utility functions initialized');
+    console.log('Available GKCCI parameters:', Object.keys(window.gkcciParameters));
+    
+    // Add global error handler for debugging
+    window.addEventListener('error', function(event) {
+        console.error('JavaScript Error:', event.error);
+    });
+}
+
+// Auto-initialize when script loads
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeUtilities);
+    } else {
+        initializeUtilities();
+    }
+}
+
+// Export functions for use in other files
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        PolicyManager: window.PolicyManager,
+        UIHelpers: window.UIHelpers,
+        DataProcessor: window.DataProcessor,
+        getGKCCIColor,
+        calculateGKCCIDistribution,
+        filterAnnotationsByPolicy,
+        filterAnnotationsByStudent,
+        createDebounce,
+        formatDate,
+        timeAgo,
+        generateSampleGKCCIText
+    };
 }

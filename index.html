@@ -7,7 +7,6 @@
     
     <!-- Stylesheets -->
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/responsive.css">
     
     <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
@@ -30,23 +29,30 @@
                     </div>
                 </div>
             </div>
+            <div style="text-align: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <a href="projectExplorer.html" style="background: rgba(255,255,255,0.15); color: white; text-decoration: none; padding: 10px 20px; border-radius: 25px; font-weight: 600; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); transition: all 0.3s ease;" 
+                   onmouseover="this.style.background='rgba(255,255,255,0.25)'"
+                   onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    📂 Browse Project Files
+                </a>
+            </div>
         </header>
 
         <!-- Student Selection Section -->
-        <section class="student-selection" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
-            <h3 style="color: #2d3748; margin-bottom: 20px;">👨‍🎓 Student Information & Policy Selection</h3>
+        <section class="student-selection">
+            <h3>👨‍🎓 Student Information & Policy Selection</h3>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px;">
                 <div>
-                    <label for="studentName" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">Your Name:</label>
-                    <input type="text" id="studentName" placeholder="Enter your full name" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                    <label for="studentName">Your Name:</label>
+                    <input type="text" id="studentName" placeholder="Enter your full name">
                 </div>
                 <div>
-                    <label for="studentEmail" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">Email (Optional):</label>
-                    <input type="email" id="studentEmail" placeholder="your.email@uiowa.edu" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                    <label for="studentEmail">Email (Optional):</label>
+                    <input type="email" id="studentEmail" placeholder="your.email@uiowa.edu">
                 </div>
                 <div>
-                    <label for="university" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">University:</label>
-                    <select id="university" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px;">
+                    <label for="university">University:</label>
+                    <select id="university">
                         <option value="">Select University</option>
                         <option value="University of Iowa">University of Iowa</option>
                         <option value="Colgate University">Colgate University</option>
@@ -55,108 +61,179 @@
                 </div>
             </div>
             
-            <div style="margin-bottom: 20px;">
-                <label for="policyCategory" style="font-weight: bold; color: #2d3748; display: block; margin-bottom: 8px;">📋 Policy Category:</label>
-                <select id="policyCategory" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; background: white;">
-                    <option value="">Select Policy Category to Annotate</option>
-                    <option value="social-media">Social Media Platforms (Facebook, Twitter, Instagram)</option>
-                    <option value="ecommerce">E-commerce & Shopping (Amazon, eBay, Online Stores)</option>
-                    <option value="healthcare">Healthcare & Medical Services</option>
-                    <option value="financial">Financial Services & Banking</option>
-                    <option value="education">Educational Platforms & EdTech</option>
-                    <option value="gaming">Gaming & Entertainment</option>
-                    <option value="cloud-storage">Cloud Storage & File Sharing</option>
-                    <option value="mobile-apps">Mobile Apps & Services</option>
-                    <option value="streaming">Video/Music Streaming Services</option>
-                    <option value="government">Government & Public Services</option>
-                    <option value="travel">Travel & Transportation</option>
-                    <option value="other">Other Policy Type</option>
-                </select>
+            <div style="margin-bottom: 20px; position: relative;">
+                <label for="policyName">📋 Policy Name:</label>
+                <input type="text" id="policyName" placeholder="Enter policy name or search existing..." 
+                       oninput="searchExistingPolicies()" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px;">
+                <div id="existingPolicies" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000;">
+                    <!-- Dropdown will be populated by searchExistingPolicies() -->
+                </div>
             </div>
 
-            <div id="selectedInfo" style="display: none; background: linear-gradient(45deg, #48bb78, #38a169); color: white; padding: 15px; border-radius: 10px; text-align: center;">
+            <div id="selectedInfo" style="display: none;">
                 <strong id="selectedText">Ready to upload annotations!</strong>
             </div>
         </section>
 
-        <!-- Upload Section -->
-        <section class="upload-section">
-            <div class="upload-methods">
-                <!-- JSON Paste -->
-                <div class="upload-method">
-                    <h3>📋 Paste JSON Data</h3>
-                    <textarea id="jsonPaste" placeholder="Paste your Label Studio export JSON here..." rows="4" disabled></textarea>
-                    <button onclick="processJSONPaste()" disabled>Process JSON</button>
-                </div>
+        <!-- Upload Section - Conditional Display -->
+        <section class="upload-section" id="uploadSection">
+            <!-- Initially Hidden Upload Interface -->
+            <div id="uploadInterface" style="display: none;">
+                <h3 style="margin-bottom: 25px; color: #333;">Upload Your Label Studio Annotations</h3>
+                <div class="upload-methods">
+                    <!-- JSON Paste -->
+                    <div class="upload-method">
+                        <h3>📋 Paste JSON Data</h3>
+                        <textarea id="jsonPaste" placeholder="Paste your Label Studio export JSON here..." rows="4"></textarea>
+                        <button onclick="processJSONPaste()">Process JSON</button>
+                    </div>
 
-                <!-- File Upload -->
-                <div class="upload-method">
-                    <h3>📁 Upload Label Studio Export</h3>
-                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                        <p>Please select your name and policy category first</p>
-                        <small>Supports: Label Studio JSON export, annotations export, task export</small>
-                        <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
+                    <!-- File Upload -->
+                    <div class="upload-method">
+                        <h3>📁 Upload Label Studio Export</h3>
+                        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                            <p>Drop JSON export file here or click to browse</p>
+                            <small>Supports: Label Studio JSON export, annotations export, task export</small>
+                            <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileUpload(event)">
+                        </div>
+                    </div>
+
+                    <!-- API Connection -->
+                    <div class="upload-method">
+                        <h3>📡 Connect to Label Studio API</h3>
+                        <div class="api-connection">
+                            <input type="url" id="labelStudioUrl" placeholder="Label Studio URL (e.g., http://localhost:8080)" value="http://localhost:8080">
+                            <input type="password" id="apiToken" placeholder="API Token (from Account & Settings)">
+                            <select id="projectId">
+                                <option value="">Select Project</option>
+                            </select>
+                            <button onclick="fetchFromAPI()">Fetch Live Data</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- API Connection -->
-                <div class="upload-method">
-                    <h3>📡 Connect to Label Studio API</h3>
-                    <div class="api-connection">
-                        <input type="url" id="labelStudioUrl" placeholder="Label Studio URL (e.g., http://localhost:8080)" value="http://localhost:8080">
-                        <input type="password" id="apiToken" placeholder="API Token (from Account & Settings)">
-                        <select id="projectId">
-                            <option value="">Select Project</option>
-                        </select>
-                        <button onclick="fetchFromAPI()">Fetch Live Data</button>
+                <!-- Upload Status -->
+                <div class="upload-status" id="uploadStatus" style="display: none;">
+                    <div class="status-content">
+                        <div class="status-icon">⏳</div>
+                        <div class="status-text">Processing data...</div>
+                        <div class="status-details"></div>
+                    </div>
+                </div>
+
+                <!-- Upload Success Message -->
+                <div class="upload-success" id="uploadSuccess" style="display: none;">
+                    <div class="success-content">
+                        <div class="success-icon">✅</div>
+                        <div class="success-text" id="uploadSuccessText">Upload successful!</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Upload Status -->
-            <div class="upload-status" id="uploadStatus" style="display: none;">
-                <div class="status-content">
-                    <div class="status-icon">⏳</div>
-                    <div class="status-text">Processing data...</div>
-                    <div class="status-details"></div>
+            <!-- Placeholder When No Student Info -->
+            <div id="uploadPlaceholder" style="text-align: center; padding: 60px 30px; background: rgba(102, 126, 234, 0.05); border-radius: 20px; border: 2px dashed rgba(102, 126, 234, 0.3);">
+                <div style="font-size: 4em; margin-bottom: 20px; opacity: 0.6;">📤</div>
+                <h3 style="color: #667eea; margin-bottom: 15px; font-size: 1.4em;">Ready to Upload Annotations?</h3>
+                <p style="color: #666; font-size: 1.1em; margin-bottom: 20px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                    Please complete your student information and specify the policy file name above to enable the upload interface.
+                </p>
+                <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px auto; max-width: 400px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);">
+                    <h4 style="color: #333; margin-bottom: 10px;">Required Information:</h4>
+                    <div style="text-align: left; color: #666;">
+                        <div style="margin-bottom: 8px;">
+                            <span id="nameCheck" style="margin-right: 10px;">❌</span>
+                            <span>Your Name</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span id="policyCheck" style="margin-right: 10px;">❌</span>
+                            <span>Policy File Name</span>
+                        </div>
+                        <div>
+                            <span id="universityCheck" style="margin-right: 10px;">❓</span>
+                            <span>University (Optional)</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="enableUploadBtn" disabled style="padding: 15px 30px; font-size: 1.1em; background: #ccc; color: #666; border: none; border-radius: 10px; cursor: not-allowed; margin-top: 10px;">
+                    Complete Information to Enable Upload
+                </button>
+            </div>
+        </section>
+
+        <!-- Policy List Section - Enhanced with Delete Controls -->
+        <section class="policy-tracking" id="policyTracking" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>📁 Your Annotation Projects</h3>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <!-- Project Management Controls -->
+                    <div style="display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.9); padding: 10px 15px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);">
+                        <span style="font-size: 0.9em; color: #666; font-weight: 600;">Project Actions:</span>
+                        <button onclick="toggleBulkDelete()" id="bulkDeleteToggle" 
+                                style="padding: 8px 15px; background: #e53e3e; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; font-weight: 600;">
+                            🗑️ Manage Deletions
+                        </button>
+                        <button onclick="refreshPolicyList()" 
+                                style="padding: 8px 15px; background: #48bb78; color: white; border: none; border-radius: 6px; font-size: 0.85em; cursor: pointer; font-weight: 600;">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                    <a href="projectExplorer.html" style="background: linear-gradient(45deg, #48bb78, #38a169); color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; transition: all 0.3s ease;" 
+                       onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 15px rgba(72, 187, 120, 0.3)'"
+                       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        🗂️ Project Explorer
+                    </a>
                 </div>
             </div>
-        </section>
-
-        <!-- Policy Upload Tracking Section -->
-        <section class="policy-tracking" id="policyTracking" style="display: none; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);">
-            <h3 style="color: #2d3748; margin-bottom: 20px;">📁 Uploaded Annotations by Policy Category</h3>
-            <div id="policyTrackingContent">
-                <!-- This will be populated with uploaded files by category -->
+            
+            <!-- Search and Filter Controls -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+                <input type="text" id="policySearch" placeholder="Search projects..." 
+                       style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                <select id="sortPolicies" onchange="sortPolicyList()" 
+                        style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    <option value="name">Sort by Name</option>
+                    <option value="date">Sort by Date</option>
+                    <option value="contributors">Sort by Contributors</option>
+                    <option value="annotations">Sort by Annotations</option>
+                </select>
             </div>
-        </section>
 
-        <!-- Simple Filter Controls -->
-        <section class="controls">
-            <div class="control-group">
-                <label for="projectSelect">Filter by Policy Category:</label>
-                <select id="projectSelect">
-                    <option value="all">All Policy Categories</option>
-                    <option value="social-media">Social Media Platforms</option>
-                    <option value="ecommerce">E-commerce & Shopping</option>
-                    <option value="healthcare">Healthcare & Medical Services</option>
-                    <option value="financial">Financial Services & Banking</option>
-                    <option value="education">Educational Platforms & EdTech</option>
-                    <option value="gaming">Gaming & Entertainment</option>
-                    <option value="cloud-storage">Cloud Storage & File Sharing</option>
-                    <option value="mobile-apps">Mobile Apps & Services</option>
-                    <option value="streaming">Video/Music Streaming Services</option>
-                    <option value="government">Government & Public Services</option>
-                    <option value="travel">Travel & Transportation</option>
-                    <option value="other">Other Policy Type</option>
-                </select>
+            <!-- Bulk Delete Controls (Initially Hidden) -->
+            <div id="bulkDeleteControls" style="display: none; background: #fee; border: 2px solid #fcc; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: between; align-items: center; gap: 15px;">
+                    <div style="flex: 1;">
+                        <h4 style="color: #c53030; margin-bottom: 10px;">⚠️ Bulk Project Management</h4>
+                        <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
+                            Select projects below to perform bulk operations. <strong>Deletion is permanent and cannot be undone.</strong>
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="selectAllProjects()" 
+                                    style="padding: 8px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
+                                Select All
+                            </button>
+                            <button onclick="deselectAllProjects()" 
+                                    style="padding: 8px 15px; background: #718096; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85em;">
+                                Deselect All
+                            </button>
+                            <button onclick="deleteSelectedProjects()" id="deleteSelectedBtn" disabled
+                                    style="padding: 8px 15px; background: #e53e3e; color: white; border: none; border-radius: 5px; cursor: not-allowed; font-size: 0.85em; opacity: 0.6;">
+                                🗑️ Delete Selected
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="toggleBulkDelete()" 
+                            style="padding: 10px; background: #718096; color: white; border: none; border-radius: 50%; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        ✕
+                    </button>
+                </div>
+            </div>
 
-                <label for="studentFilter">Filter by Student:</label>
-                <select id="studentFilter">
-                    <option value="all">All Students</option>
-                </select>
-
-                <button onclick="applyFilters()">Apply Filters</button>
+            <div id="policyListMain">
+                <!-- Main policy cards will be displayed here -->
+            </div>
+            <div id="noPoliciesMessage" style="display: none; text-align: center; padding: 40px; color: #666; background: white; border-radius: 12px; margin-top: 20px;">
+                <h4>No annotation projects yet</h4>
+                <p>Upload your first Label Studio annotations above to create a project</p>
             </div>
         </section>
 
@@ -165,81 +242,170 @@
             <h3>📊 Current Dataset Summary</h3>
             <div class="summary-grid">
                 <div class="summary-item">
-                    <strong id="taskCount">0</strong>
-                    <span>Tasks</span>
+                    <strong id="policyCount">0</strong>
+                    <span>Policies</span>
                 </div>
                 <div class="summary-item">
                     <strong id="annotationCount">0</strong>
                     <span>Annotations</span>
                 </div>
                 <div class="summary-item">
-                    <strong id="annotatorCount">0</strong>
-                    <span>Annotators</span>
+                    <strong id="studentCount">0</strong>
+                    <span>Students</span>
                 </div>
                 <div class="summary-item">
-                    <strong id="labelTypeCount">0</strong>
-                    <span>GKCCI Parameters</span>
+                    <strong id="uploadCount">0</strong>
+                    <span>Uploads</span>
                 </div>
             </div>
         </section>
 
-        <!-- Dashboard Charts -->
-        <section class="dashboard">
-            <div class="chart-container">
-                <div class="chart-title">GKCCI Parameter Distribution</div>
-                <canvas id="labelChart"></canvas>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-title">Inter-Annotator Agreement</div>
-                <canvas id="consistencyChart"></canvas>
-            </div>
-        </section>
-
-        <!-- Consistency Metrics -->
-        <section class="consistency-metrics">
-            <div class="chart-title">GKCCI Annotation Quality Metrics</div>
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div class="metric-value" id="overallAgreement">85.2%</div>
-                    <div class="metric-label">Overall Agreement</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="kappaScore">0.78</div>
-                    <div class="metric-label">Cohen's Kappa</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="totalLabels">1,247</div>
-                    <div class="metric-label">Total Annotations</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-value" id="activeAnnotators">8</div>
-                    <div class="metric-label">Law Students</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Detailed View -->
+        <!-- Getting Started Guide -->
         <section class="detailed-view">
-            <div class="chart-title">Annotation Performance by Policy Category</div>
-            <div id="policyPerformance">
-                <!-- This will show performance organized by policy category -->
-            </div>
-        </section>
-
-        <!-- Student Performance View -->
-        <section class="detailed-view" style="margin-top: 30px;">
-            <div class="chart-title">Individual Student Performance</div>
-            <div id="studentDetails">
-                <!-- This will be populated by JavaScript with individual student performance data -->
+            <div class="chart-title">How to Use This Dashboard</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #667eea;">
+                    <h4 style="color: #667eea; margin-bottom: 10px;">1. Create Your Project</h4>
+                    <p style="color: #666; font-size: 0.9em;">Fill in your name, email, and university. Specify the policy project you're working on (e.g., "Facebook Privacy Policy 2024"). This creates a dedicated project folder.</p>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #48bb78;">
+                    <h4 style="color: #48bb78; margin-bottom: 10px;">2. Upload Your Annotations</h4>
+                    <p style="color: #666; font-size: 0.9em;">Upload your Label Studio JSON export or paste the data directly. Your files are stored in organized project folders on the server.</p>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #f093fb;">
+                    <h4 style="color: #f093fb; margin-bottom: 10px;">3. Explore & Analyze</h4>
+                    <p style="color: #666; font-size: 0.9em;">Click on project cards to view GKCCI analysis, use the Project Explorer to browse all files hierarchically, or manage student contributions.</p>
+                </div>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #ed8936;">
+                    <h4 style="color: #ed8936; margin-bottom: 10px;">4. Collaborate & Manage</h4>
+                    <p style="color: #666; font-size: 0.9em;">Multiple students can contribute to the same project. Instructors can manage contributions, remove uploads if needed, and export project data. Use the delete management tools to clean up projects when needed.</p>
+                </div>
             </div>
         </section>
     </div>
 
-    <!-- JavaScript Files -->
+    <!-- JavaScript Files - Match your project structure -->
     <script src="js/utils.js"></script>
     <script src="js/charts.js"></script>
     <script src="js/labelstudio.js"></script>
+    <!-- <script src="js/policy-manager.js"></script> -->
+    <script src="js/auth.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Additional JavaScript for Bulk Delete Functionality -->
+    <script>
+        // Bulk delete management functions that work with existing JS
+        window.toggleBulkDelete = function() {
+            const controls = document.getElementById('bulkDeleteControls');
+            const toggleBtn = document.getElementById('bulkDeleteToggle');
+            const isVisible = controls.style.display !== 'none';
+            
+            if (isVisible) {
+                controls.style.display = 'none';
+                toggleBtn.textContent = '🗑️ Manage Deletions';
+                toggleBtn.style.background = '#e53e3e';
+                // Remove checkboxes from all cards
+                document.querySelectorAll('.policy-card .delete-checkbox').forEach(cb => cb.remove());
+            } else {
+                controls.style.display = 'block';
+                toggleBtn.textContent = '❌ Cancel Management';
+                toggleBtn.style.background = '#718096';
+                // Add checkboxes to all cards
+                addDeleteCheckboxesToCards();
+            }
+        };
+
+        window.addDeleteCheckboxesToCards = function() {
+            document.querySelectorAll('.policy-card').forEach(card => {
+                if (!card.querySelector('.delete-checkbox')) {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'delete-checkbox';
+                    checkbox.style.cssText = `
+                        position: absolute;
+                        top: 15px;
+                        right: 15px;
+                        width: 20px;
+                        height: 20px;
+                        cursor: pointer;
+                        z-index: 10;
+                    `;
+                    checkbox.addEventListener('change', updateDeleteButton);
+                    card.style.position = 'relative';
+                    card.appendChild(checkbox);
+                }
+            });
+        };
+
+        window.updateDeleteButton = function() {
+            const selectedCount = document.querySelectorAll('.delete-checkbox:checked').length;
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            
+            if (selectedCount > 0) {
+                deleteBtn.disabled = false;
+                deleteBtn.style.cursor = 'pointer';
+                deleteBtn.style.opacity = '1';
+                deleteBtn.textContent = `🗑️ Delete Selected (${selectedCount})`;
+            } else {
+                deleteBtn.disabled = true;
+                deleteBtn.style.cursor = 'not-allowed';
+                deleteBtn.style.opacity = '0.6';
+                deleteBtn.textContent = '🗑️ Delete Selected';
+            }
+        };
+
+        window.selectAllProjects = function() {
+            document.querySelectorAll('.delete-checkbox').forEach(cb => {
+                cb.checked = true;
+            });
+            updateDeleteButton();
+        };
+
+        window.deselectAllProjects = function() {
+            document.querySelectorAll('.delete-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            updateDeleteButton();
+        };
+
+        window.deleteSelectedProjects = async function() {
+            const selectedCheckboxes = document.querySelectorAll('.delete-checkbox:checked');
+            const selectedPolicies = Array.from(selectedCheckboxes).map(cb => {
+                const card = cb.closest('.policy-card');
+                return card.querySelector('h4').textContent;
+            });
+
+            if (selectedPolicies.length === 0) return;
+
+            const confirmMessage = `Are you sure you want to delete ${selectedPolicies.length} project(s)?\n\nProjects to delete:\n${selectedPolicies.map(p => `• ${p}`).join('\n')}\n\nThis action cannot be undone and will delete all associated files and data.`;
+            
+            if (!confirm(confirmMessage)) return;
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const policyName of selectedPolicies) {
+                try {
+                    await window.deleteProject(encodeURIComponent(policyName));
+                    successCount++;
+                } catch (error) {
+                    console.error(`Failed to delete ${policyName}:`, error);
+                    errorCount++;
+                }
+            }
+
+            // Show results
+            if (successCount > 0) {
+                window.showMessage(`Successfully deleted ${successCount} project(s)`, 'success');
+            }
+            if (errorCount > 0) {
+                window.showMessage(`Failed to delete ${errorCount} project(s)`, 'error');
+            }
+
+            // Refresh the list and hide bulk controls
+            await window.loadPoliciesFromServer();
+            window.toggleBulkDelete();
+        };
+    </script>
 </body>
 </html>
