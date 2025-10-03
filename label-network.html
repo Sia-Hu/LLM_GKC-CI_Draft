@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Label Relations Network Visualizer</title>
+  <link rel="stylesheet" href="css/label-relation.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Label Relations Network Visualizer</h1>
+
+    <div class="upload-section">
+      <h2>Upload JSON File</h2>
+      <div class="upload-area" id="uploadArea">
+        <p>Drag and drop your JSON file here</p>
+        <p style="margin: 10px 0;">or</p>
+        <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+          Choose File
+        </button>
+        <input type="file" id="fileInput" accept=".json">
+      </div>
+      <div class="loading-message" id="loadingMessage">Loading D3.js library...</div>
+      <div class="error-message" id="errorMessage"></div>
+      <div class="success-message" id="successMessage"></div>
+    </div>
+
+    <div id="visualizations"></div>
+  </div>
+
+  <!-- D3 library -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- Our JS -->
+  <script src="js/label-relation.js"></script>
+</body>
+</html>

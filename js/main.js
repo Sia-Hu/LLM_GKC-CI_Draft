@@ -269,6 +269,7 @@
             
             const result = await uploadFile(formData);
             
+            
             showStatus('File uploaded successfully!', '✅');
             showUploadSuccess(result.isNewPolicy, result.annotationCount);
             
@@ -280,6 +281,7 @@
             showStatus('Upload failed', '❌');
             setTimeout(hideStatus, 3000);
         }
+        event.target.value = "";
     }
     
     function showUploadSuccess(isNewPolicy, annotationCount) {

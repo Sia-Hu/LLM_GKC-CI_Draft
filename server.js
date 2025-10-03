@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const cors = require('cors');
+const { addGlobalOffsets } = require('./js/offsetConverter');
+
 
 const app = express();
 const PORT = process.env.PORT || 8001;
@@ -98,6 +100,11 @@ function countAnnotations(data) {
         count = data.annotations.length;
     }
     return count;
+}
+
+// Helper function to sanitize folder names
+function sanitizeFolderName(name) {
+    return name.replace(/[^a-zA-Z0-9\-_\s]/g, '_').replace(/\s+/g, '_');
 }
 
 // API Routes
@@ -196,7 +203,7 @@ app.post('/api/upload', upload.single('annotationFile'), async (req, res) => {
       return res.status(400).json({ error: 'Student name and policy name are required' });
     }
 
-    // 👇 Ensure hierarchical folder
+    // Ensure hierarchical folder
     const policyDir = path.join(DATA_DIR, 'projects', policyName);
     await ensureDirectoryExists(policyDir);
 
@@ -207,8 +214,14 @@ app.post('/api/upload', upload.single('annotationFile'), async (req, res) => {
     // Count annotations
     const fileContent = await fs.readFile(finalPath, 'utf8');
     const jsonData = JSON.parse(fileContent);
-    const annotationCount = countAnnotations(jsonData);
 
+    if (Array.isArray(jsonData)) {
+        jsonData.forEach(task => addGlobalOffsets(task));
+    } else {
+        addGlobalOffsets(jsonData);
+    }
+    const annotationCount = countAnnotations(jsonData);
+    await fs.writeFile(finalPath, JSON.stringify(jsonData, null, 2))
     // Update policies.json
     const policies = await loadPolicies();
     const isNewPolicy = !policies[policyName];
@@ -256,6 +269,7 @@ app.post('/api/upload', upload.single('annotationFile'), async (req, res) => {
     res.status(500).json({ error: 'Failed to process upload', details: err.message });
   }
 });
+
 // Upload annotation data via JSON paste
 app.post('/api/upload-json', async (req, res) => {
     try {
@@ -270,6 +284,11 @@ app.post('/api/upload-json', async (req, res) => {
             annotationData = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
         } catch (parseError) {
             return res.status(400).json({ error: 'Invalid JSON data' });
+        }
+        if (Array.isArray(annotationData)) {
+            annotationData.forEach(task => addGlobalOffsets(task));
+        } else {
+            addGlobalOffsets(annotationData);
         }
 
         const annotationCount = countAnnotations(annotationData);
@@ -338,7 +357,7 @@ app.post('/api/upload-json', async (req, res) => {
     }
 });
 
-// Add this endpoint to your server.js file
+// Get policy files
 app.get('/api/policies/:policyName/files', async (req, res) => {
     try {
         const policyName = decodeURIComponent(req.params.policyName);
@@ -511,6 +530,221 @@ app.delete('/api/policies/:policyName/files/:fileName', async (req, res) => {
     } catch (error) {
         console.error('Error deleting file:', error);
         res.status(500).json({ error: 'Failed to delete file' });
+    }
+});
+
+// Delete individual file from a specific contributor (hierarchical structure)
+app.delete('/api/policies/:policyName/contributors/:contributor/files/:fileName', async (req, res) => {
+    try {
+        const policyName = decodeURIComponent(req.params.policyName);
+        const contributor = decodeURIComponent(req.params.contributor);
+        const fileName = decodeURIComponent(req.params.fileName);
+        
+        console.log(`Deleting file ${fileName} from contributor ${contributor} in policy ${policyName}`);
+        
+        const policies = await loadPolicies();
+        const policy = policies[policyName];
+        
+        if (!policy) {
+            return res.status(404).json({ error: 'Policy not found' });
+        }
+        
+        if (!policy.contributors[contributor]) {
+            return res.status(404).json({ error: 'Contributor not found' });
+        }
+        
+        // Find the upload to delete
+        const uploads = policy.contributors[contributor].uploads;
+        const uploadIndex = uploads.findIndex(upload => upload.storedAs === fileName);
+        
+        if (uploadIndex === -1) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+        
+        const upload = uploads[uploadIndex];
+        const annotationCount = upload.annotationCount || 0;
+        
+        // Try to delete the physical file from multiple possible locations
+        const possiblePaths = [
+            path.join(DATA_DIR, 'projects', sanitizeFolderName(policyName), fileName),
+            path.join(DATA_DIR, 'uploads', fileName),
+            upload.filePath // Original path if stored
+        ];
+        
+        let fileDeleted = false;
+        for (const filePath of possiblePaths) {
+            if (filePath) {
+                try {
+                    await fs.unlink(filePath);
+                    fileDeleted = true;
+                    console.log(`Successfully deleted file: ${filePath}`);
+                    break;
+                } catch (error) {
+                    // Continue to next path
+                }
+            }
+        }
+        
+        if (!fileDeleted) {
+            console.warn(`Could not delete physical file: ${fileName}`);
+        }
+        
+        // Remove the upload from contributor
+        uploads.splice(uploadIndex, 1);
+        
+        // Update contributor totals
+        policy.contributors[contributor].totalAnnotations -= annotationCount;
+        
+        // Update policy totals
+        policy.totalAnnotations -= annotationCount;
+        policy.lastUpdated = new Date().toISOString();
+        
+        // If contributor has no more uploads, remove them
+        if (uploads.length === 0) {
+            delete policy.contributors[contributor];
+            console.log(`Removed contributor ${contributor} (no files remaining)`);
+        }
+        
+        // If no contributors left, remove the policy
+        if (Object.keys(policy.contributors).length === 0) {
+            delete policies[policyName];
+            console.log(`Removed policy ${policyName} (no contributors remaining)`);
+        }
+        
+        // Save updated policies
+        await savePolicies(policies);
+        
+        res.json({
+            success: true,
+            message: `File deleted successfully`,
+            fileDeleted: fileDeleted,
+            remainingFiles: uploads.length,
+            remainingContributors: Object.keys(policy.contributors || {}).length
+        });
+        
+    } catch (error) {
+        console.error('Error deleting contributor file:', error);
+        res.status(500).json({ 
+            error: 'Failed to delete file', 
+            details: error.message 
+        });
+    }
+});
+
+// Download individual file from a specific contributor
+app.get('/api/policies/:policyName/contributors/:contributor/files/:fileName/download', async (req, res) => {
+    try {
+        const policyName = decodeURIComponent(req.params.policyName);
+        const contributor = decodeURIComponent(req.params.contributor);
+        const fileName = decodeURIComponent(req.params.fileName);
+        
+        console.log(`Download request: ${fileName} from ${contributor} in ${policyName}`);
+        
+        const policies = await loadPolicies();
+        const policy = policies[policyName];
+        
+        if (!policy) {
+            return res.status(404).json({ error: 'Policy not found' });
+        }
+        
+        if (!policy.contributors[contributor]) {
+            return res.status(404).json({ error: 'Contributor not found' });
+        }
+        
+        // Find the upload record to get original filename
+        const upload = policy.contributors[contributor].uploads.find(
+            upload => upload.storedAs === fileName
+        );
+        
+        if (!upload) {
+            return res.status(404).json({ error: 'File record not found' });
+        }
+        
+        // Try to find the physical file in multiple locations
+        const possiblePaths = [
+            path.join(DATA_DIR, 'projects', sanitizeFolderName(policyName), fileName),
+            path.join(DATA_DIR, 'uploads', fileName),
+            upload.filePath // Original path if stored
+        ];
+        
+        let actualFilePath = null;
+        for (const filePath of possiblePaths) {
+            if (filePath) {
+                try {
+                    await fs.access(filePath);
+                    actualFilePath = filePath;
+                    break;
+                } catch (error) {
+                    // Continue to next path
+                }
+            }
+        }
+        
+        if (!actualFilePath) {
+            return res.status(404).json({ error: 'Physical file not found' });
+        }
+        
+        // Get original filename for download
+        const originalName = upload.filename || upload.originalName || fileName;
+        
+        // Set appropriate headers
+        res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+        res.setHeader('Content-Type', 'application/json');
+        
+        // Send the file
+        res.sendFile(path.resolve(actualFilePath));
+        
+        console.log(`Successfully served file: ${originalName}`);
+        
+    } catch (error) {
+        console.error('Error downloading contributor file:', error);
+        res.status(500).json({ 
+            error: 'Failed to download file', 
+            details: error.message 
+        });
+    }
+});
+
+// Get file statistics for a policy (optional - for debugging)
+app.get('/api/policies/:policyName/file-stats', async (req, res) => {
+    try {
+        const policyName = decodeURIComponent(req.params.policyName);
+        const policies = await loadPolicies();
+        const policy = policies[policyName];
+        
+        if (!policy) {
+            return res.status(404).json({ error: 'Policy not found' });
+        }
+        
+        const stats = {
+            policyName,
+            totalContributors: Object.keys(policy.contributors).length,
+            totalFiles: 0,
+            totalAnnotations: policy.totalAnnotations,
+            contributors: {}
+        };
+        
+        // Gather contributor statistics
+        for (const [contributorName, contributor] of Object.entries(policy.contributors)) {
+            stats.contributors[contributorName] = {
+                fileCount: contributor.uploads.length,
+                totalAnnotations: contributor.totalAnnotations,
+                files: contributor.uploads.map(upload => ({
+                    filename: upload.filename,
+                    storedAs: upload.storedAs,
+                    annotationCount: upload.annotationCount,
+                    uploadedAt: upload.uploadedAt,
+                    source: upload.source
+                }))
+            };
+            stats.totalFiles += contributor.uploads.length;
+        }
+        
+        res.json(stats);
+        
+    } catch (error) {
+        console.error('Error getting file stats:', error);
+        res.status(500).json({ error: 'Failed to get file statistics' });
     }
 });
 

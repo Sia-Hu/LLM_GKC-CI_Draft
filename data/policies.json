@@ -1,24 +1,24 @@
 {
-  "Amazon": {
-    "createdAt": "2025-09-19T05:50:00.129Z",
+  "Meta": {
+    "createdAt": "2025-10-03T15:44:51.176Z",
     "contributors": {
       "Matt": {
         "uploads": [
           {
-            "filename": "testLead.json",
-            "storedAs": "1758261000116_testLead.json",
-            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Amazon/1758261000116_testLead.json",
-            "annotationCount": 2,
-            "uploadedAt": "2025-09-19T05:50:00.129Z",
+            "filename": "test1002.json",
+            "storedAs": "1759506290872_test1002.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Meta/1759506290872_test1002.json",
+            "annotationCount": 3,
+            "uploadedAt": "2025-10-03T15:44:51.176Z",
             "source": "upload"
           }
         ],
         "email": "",
         "university": "University of Iowa",
-        "totalAnnotations": 2
+        "totalAnnotations": 3
       }
     },
-    "totalAnnotations": 2,
-    "lastUpdated": "2025-09-19T05:50:00.129Z"
+    "totalAnnotations": 3,
+    "lastUpdated": "2025-10-03T15:44:51.176Z"
   }
 }

@@ -1,11 +1,28 @@
+// Policy Page JavaScript - Annotation Agreement Analysis
+
 // API configuration to match main.js
-const API_BASE = window.location.port === '8000' ? 'http://localhost:8001/api' : '/api';
+const API_BASE = window.location.port === '8000' ? 'http://localhost:3000/api' : '/api';
 
 // Get policy name from URL
 const urlParams = new URLSearchParams(window.location.search);
 const policyName = urlParams.get('policy');
 
-// Initialize page
+/* 
+ * Required Server Endpoints for File Management:
+ * 
+ * DELETE /api/policies/:policyName/contributors/:contributor/files/:fileName
+ * - Deletes individual file from contributor's uploads
+ * - Should update policy statistics
+ * - Should remove contributor if no files remain
+ * 
+ * GET /api/policies/:policyName/contributors/:contributor/files/:fileName/download
+ * - Downloads individual file
+ * - Should return proper Content-Disposition header
+ * 
+ * These endpoints should be added to your server.js file
+ */
+
+// Initialize page when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
   if (policyName) {
     updatePageTitle(policyName);
@@ -81,6 +98,8 @@ function showServerDataInfo(policyData, latestFile) {
   const infoDiv = document.getElementById('serverDataInfo');
   const dataSource = document.getElementById('dataSource');
   
+  if (!infoDiv || !dataSource) return;
+  
   const contributors = Object.keys(policyData.contributors).join(', ');
   const lastUpdated = new Date(policyData.lastUpdated).toLocaleDateString();
   const totalAnnotations = policyData.totalAnnotations || 0;
@@ -89,21 +108,41 @@ function showServerDataInfo(policyData, latestFile) {
   infoDiv.style.display = 'block';
   
   // Hide manual upload by default when server data loads
-  document.getElementById('fileUploadSection').style.display = 'none';
+  const uploadSection = document.getElementById('fileUploadSection');
+  if (uploadSection) {
+    uploadSection.style.display = 'none';
+  }
 }
 
 function showManualUpload() {
-  document.getElementById('fileUploadSection').style.display = 'block';
+  const uploadSection = document.getElementById('fileUploadSection');
+  if (uploadSection) {
+    uploadSection.style.display = 'block';
+  }
 }
 
 function showLoading(message) {
-  document.getElementById('stats').innerHTML = `<span class="loading">${message}</span>`;
-  document.getElementById('policyContainer').innerHTML = `<div class="loading">${message}</div>`;
+  const statsEl = document.getElementById('stats');
+  const containerEl = document.getElementById('policyContainer');
+  
+  if (statsEl) {
+    statsEl.innerHTML = `<span class="loading">${message}</span>`;
+  }
+  if (containerEl) {
+    containerEl.innerHTML = `<div class="loading">${message}</div>`;
+  }
 }
 
 function showMessage(message) {
-  document.getElementById('stats').innerHTML = message;
-  document.getElementById('policyContainer').innerHTML = message;
+  const statsEl = document.getElementById('stats');
+  const containerEl = document.getElementById('policyContainer');
+  
+  if (statsEl) {
+    statsEl.innerHTML = message;
+  }
+  if (containerEl) {
+    containerEl.innerHTML = message;
+  }
 }
 
 function handleManualUpload(event) {
@@ -119,12 +158,22 @@ function handleManualUpload(event) {
       const task = Array.isArray(json) ? json[0] : json;
       
       // Hide server data info when manual file is uploaded
-      document.getElementById('serverDataInfo').style.display = 'none';
+      const serverInfo = document.getElementById('serverDataInfo');
+      if (serverInfo) {
+        serverInfo.style.display = 'none';
+      }
       
       processTask(task);
     } catch (err) {
-      document.getElementById('stats').innerHTML = `<span class="error">Failed to parse JSON: ${err.message}</span>`;
-      document.getElementById('policyContainer').innerHTML = `<div class="error">Invalid JSON file</div>`;
+      const statsEl = document.getElementById('stats');
+      const containerEl = document.getElementById('policyContainer');
+      
+      if (statsEl) {
+        statsEl.innerHTML = `<span class="error">Failed to parse JSON: ${err.message}</span>`;
+      }
+      if (containerEl) {
+        containerEl.innerHTML = `<div class="error">Invalid JSON file</div>`;
+      }
     }
   };
   reader.readAsText(f);
@@ -155,7 +204,9 @@ function buildTextNodeIndex(root) {
 function findNodeForOffset(nodesIndex, offset) {
   if (offset === nodesIndex.totalLength) {
     const last = nodesIndex.nodes[nodesIndex.nodes.length - 1];
-    return { node: last.node, local: last.node.nodeValue.length };
+    if (last && last.node) {
+      return { node: last.node, local: last.node.nodeValue.length };
+    }
   }
   for (let n of nodesIndex.nodes) {
     if (offset >= n.start && offset < n.end) {
@@ -225,8 +276,272 @@ function updateStatsDisplay(distinctSpansCount, fullAgreements, totalAnnotators)
   if (agreementRateEl) agreementRateEl.textContent = agreementRate + '%';
 }
 
+function calculateF1Metrics(annSpans, allUsers) {
+  if (annSpans.length === 0 || allUsers.size < 2) {
+    return { precision: 0, recall: 0, f1Score: 0 };
+  }
+
+  // Group annotations by annotator
+  const annotatorSpans = {};
+  annSpans.forEach(span => {
+    if (!annotatorSpans[span.user]) {
+      annotatorSpans[span.user] = [];
+    }
+    annotatorSpans[span.user].push({
+      start: span.start,
+      end: span.end,
+      label: span.label
+    });
+  });
+
+  const annotators = Object.keys(annotatorSpans);
+  if (annotators.length < 2) {
+    return { precision: 0, recall: 0, f1Score: 0 };
+  }
+
+  // Calculate pairwise F1 scores between all annotators
+  let totalPrecision = 0;
+  let totalRecall = 0;
+  let comparisons = 0;
+
+  for (let i = 0; i < annotators.length; i++) {
+    for (let j = i + 1; j < annotators.length; j++) {
+      const annotator1 = annotators[i];
+      const annotator2 = annotators[j];
+      
+      const spans1 = annotatorSpans[annotator1];
+      const spans2 = annotatorSpans[annotator2];
+      
+      // Calculate overlap metrics
+      const { precision, recall } = calculatePairwiseMetrics(spans1, spans2);
+      
+      totalPrecision += precision;
+      totalRecall += recall;
+      comparisons++;
+    }
+  }
+
+  if (comparisons === 0) {
+    return { precision: 0, recall: 0, f1Score: 0 };
+  }
+
+  // Average across all pairwise comparisons
+  const avgPrecision = totalPrecision / comparisons;
+  const avgRecall = totalRecall / comparisons;
+  
+  // Calculate F1 score
+  const f1Score = (avgPrecision + avgRecall > 0) ? 
+    (2 * avgPrecision * avgRecall) / (avgPrecision + avgRecall) : 0;
+
+  return {
+    precision: Math.round(avgPrecision * 100),
+    recall: Math.round(avgRecall * 100),
+    f1Score: Math.round(f1Score * 100)
+  };
+}
+
+function calculateJaccardMetrics(annSpans, allUsers) {
+  if (annSpans.length === 0 || allUsers.size < 2) {
+    return { jaccard: 0 };
+  }
+
+  // Group spans by annotator
+  const annotatorSpans = {};
+  annSpans.forEach(span => {
+    if (!annotatorSpans[span.user]) {
+      annotatorSpans[span.user] = [];
+    }
+    annotatorSpans[span.user].push({
+      start: span.start,
+      end: span.end,
+      label: span.label
+    });
+  });
+
+  const annotators = Object.keys(annotatorSpans);
+  if (annotators.length < 2) {
+    return { jaccard: 0 };
+  }
+
+  let totalJaccard = 0;
+  let comparisons = 0;
+
+  for (let i = 0; i < annotators.length; i++) {
+    for (let j = i + 1; j < annotators.length; j++) {
+      const spans1 = annotatorSpans[annotators[i]];
+      const spans2 = annotatorSpans[annotators[j]];
+
+      // Treat spans as sets of [start,end,label] keys
+      const set1 = new Set(spans1.map(s => `${s.start}-${s.end}-${s.label}`));
+      const set2 = new Set(spans2.map(s => `${s.start}-${s.end}-${s.label}`));
+
+      const intersection = new Set([...set1].filter(x => set2.has(x)));
+      const union = new Set([...set1, ...set2]);
+
+      const jaccard = union.size > 0 ? intersection.size / union.size : 0;
+
+      totalJaccard += jaccard;
+      comparisons++;
+    }
+  }
+
+  const avgJaccard = comparisons > 0 ? totalJaccard / comparisons : 0;
+  return { jaccard: Math.round(avgJaccard * 100) };
+}
+
+function calculatePairwiseMetrics(spans1, spans2) {
+  if (spans1.length === 0 && spans2.length === 0) {
+    return { precision: 1, recall: 1 };
+  }
+  
+  if (spans1.length === 0 || spans2.length === 0) {
+    return { precision: 0, recall: 0 };
+  }
+
+  // Find overlapping spans (considering both position and label)
+  let truePositives = 0;
+  let processedSpans2 = new Set();
+
+  spans1.forEach(span1 => {
+    for (let i = 0; i < spans2.length; i++) {
+      if (processedSpans2.has(i)) continue;
+      
+      const span2 = spans2[i];
+      
+      // Check for overlap (at least 50% overlap) and same label
+      if (spansOverlap(span1, span2) && span1.label === span2.label) {
+        truePositives++;
+        processedSpans2.add(i);
+        break;
+      }
+    }
+  });
+
+  // Precision: TP / (TP + FP) = TP / total_spans1
+  const precision = spans1.length > 0 ? truePositives / spans1.length : 0;
+  
+  // Recall: TP / (TP + FN) = TP / total_spans2  
+  const recall = spans2.length > 0 ? truePositives / spans2.length : 0;
+
+  return { precision, recall };
+}
+
+function spansOverlap(span1, span2) {
+  const start1 = span1.start;
+  const end1 = span1.end;
+  const start2 = span2.start;
+  const end2 = span2.end;
+
+  // Calculate overlap
+  const overlapStart = Math.max(start1, start2);
+  const overlapEnd = Math.min(end1, end2);
+  
+  if (overlapStart >= overlapEnd) {
+    return false; // No overlap
+  }
+
+  const overlapLength = overlapEnd - overlapStart;
+  const span1Length = end1 - start1;
+  const span2Length = end2 - start2;
+  
+  // Require at least 50% overlap relative to shorter span
+  const minLength = Math.min(span1Length, span2Length);
+  return overlapLength >= 0;
+}
+
+function updateF1Display(metrics) {
+  const precisionEl = document.getElementById('precision');
+  const recallEl = document.getElementById('recall');
+  const f1ScoreEl = document.getElementById('f1Score');
+  
+  if (precisionEl) precisionEl.textContent = metrics.precision + '%';
+  if (recallEl) recallEl.textContent = metrics.recall + '%';
+  if (f1ScoreEl) f1ScoreEl.textContent = metrics.f1Score + '%';
+
+  // Add visual indicator for F1 score quality
+  addF1QualityIndicator(metrics.f1Score);
+}
+
+function normalizeText(str) {
+  return (str || "")
+    .replace(/\s+/g, " ")
+    .replace(/\u00A0/g, " ")
+    .trim();
+}
+
+function buildTextNodeIndex(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  let node;
+  let idx = 0;
+  while ((node = walker.nextNode())) {
+    const normText = normalizeText(node.nodeValue);
+    const len = normText.length;
+    nodes.push({ node: node, start: idx, end: idx + len, text: normText });
+    idx += len;
+  }
+  return { nodes, totalLength: idx };
+}
+
+function addF1QualityIndicator(f1Score) {
+  const f1Item = document.querySelector('.highlight-f1');
+  if (!f1Item) return;
+
+  // Remove existing indicator
+  const existingIndicator = f1Item.querySelector('.f1-quality-indicator');
+  if (existingIndicator) {
+    existingIndicator.remove();
+  }
+
+  // Create quality indicator
+  const indicator = document.createElement('div');
+  indicator.className = 'f1-quality-indicator';
+  indicator.style.cssText = `
+    position: relative;
+    height: 20px;
+    background: linear-gradient(to right, #ff4757, #ffa502, #2ed573);
+    border-radius: 10px;
+    margin-top: 10px;
+  `;
+  
+  const marker = document.createElement('div');
+  marker.className = 'f1-quality-marker';
+  marker.style.cssText = `
+    position: absolute;
+    top: -5px;
+    width: 30px;
+    height: 30px;
+    background: white;
+    border: 3px solid #667eea;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: #667eea;
+    left: ${f1Score}%;
+  `;
+  
+  // Add quality text
+  let qualityText = 'Poor';
+  if (f1Score >= 80) qualityText = 'Great';
+  else if (f1Score >= 60) qualityText = 'Good';
+  else if (f1Score >= 40) qualityText = 'Fair';
+  
+  marker.textContent = qualityText;
+  indicator.appendChild(marker);
+  f1Item.appendChild(indicator);
+}
+
 function processTask(task) {
   const container = document.getElementById('policyContainer');
+  if (!container) {
+    console.error('Policy container not found');
+    return;
+  }
+  
   container.innerHTML = '';
 
   const rawHTML = (task.data && task.data.text) ? task.data.text : (task.file_upload || '');
@@ -252,7 +567,10 @@ function processTask(task) {
   });
 
   if (annSpans.length === 0) {
-    document.getElementById('stats').innerText = 'No annotation spans found.';
+    const statsEl = document.getElementById('stats');
+    if (statsEl) {
+      statsEl.innerText = 'No annotation spans found.';
+    }
     updateStatsDisplay(0, 0, 0);
     return;
   }
@@ -275,7 +593,7 @@ function processTask(task) {
   }
 
   const segmentsToWrap = segments.filter(seg=>seg.covering.length>0)
-                          .sort((a,b)=>b.start-a.start);
+                                 .sort((a,b)=>b.start-a.start);
 
   segmentsToWrap.forEach(seg=>{
     nodesIndex = buildTextNodeIndex(container);
@@ -299,73 +617,465 @@ function processTask(task) {
     } catch(e){console.warn('wrap failed',seg,e);}
   });
 
-  container.querySelectorAll('.highlight').forEach(el=>{
-    el.addEventListener('mouseenter',()=>{
-      document.getElementById('details').innerHTML = el.dataset.details || 'No labels';
+  // Add event listeners for hover details
+  const detailsEl = document.getElementById('details');
+  if (detailsEl) {
+    container.querySelectorAll('.highlight').forEach(el=>{
+      el.addEventListener('mouseenter',()=>{
+        detailsEl.innerHTML = el.dataset.details || 'No labels';
+      });
+      el.addEventListener('mouseleave',()=>{
+        detailsEl.innerHTML = 'Hover over highlighted text to see annotation details';
+      });
     });
-  });
+  }
   
+  // Calculate and display statistics
+  // Stats for spans & agreements
   const grouped = {};
-  annSpans.forEach(a=>{
-    const k=`${a.start}-${a.end}`;
-    if(!grouped[k]) grouped[k]=[];
+  annSpans.forEach(a => {
+    const k = `${a.start}-${a.end}`;
+    if (!grouped[k]) grouped[k] = [];
     grouped[k].push(a);
   });
-  const fullAgree = Object.values(grouped).filter(list=>{
-    const labels=[...new Set(list.map(x=>x.label))];
-    const users=[...new Set(list.map(x=>x.user))];
-    return labels.length===1 && users.length>1;
+  const fullAgree = Object.values(grouped).filter(list => {
+    const labels = [...new Set(list.map(x => x.label))];
+    const users = [...new Set(list.map(x => x.user))];
+    return labels.length === 1 && users.length > 1;
   }).length;
 
+  // Update basic stats (no agreementRate anymore)
   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
-  document.getElementById('stats').innerHTML = 'Analysis complete. See statistics above and hover over highlighted text for details.';
+
+  // ✅ F1 now replaces agreementRate
+  const f1Metrics = calculateF1Metrics(annSpans, allUsers);
+  document.getElementById('f1Score').textContent = f1Metrics.f1Score + "%";
+
+  // ✅ Jaccard score
+  const jaccardMetrics = calculateJaccardMetrics(annSpans, allUsers);
+  document.getElementById('jaccardScore').textContent = jaccardMetrics.jaccard + "%";
+
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.innerHTML = 'Analysis complete. Stats updated below.';
+  }
 }
 
-// Management functions
+// Management Functions
 function exportPolicyData() {
   if (!policyName) {
-    alert('No policy selected for export');
+    showNotification('No policy selected for export', 'error');
     return;
   }
-  // This would integrate with your main.js export functionality
-  if (window.exportPolicyData) {
-    window.exportPolicyData(policyName);
-  } else {
-    alert('Export functionality not available. Please use the main dashboard.');
+  
+  try {
+    // Try to use the main dashboard export functionality
+    if (window.opener && window.opener.exportPolicyData) {
+      window.opener.exportPolicyData(policyName);
+    } else if (window.parent && window.parent.exportPolicyData) {
+      window.parent.exportPolicyData(policyName);
+    } else {
+      // Fallback: direct API call
+      window.open(`${API_BASE}/policy-file/${encodeURIComponent(policyName)}/export`, '_blank');
+    }
+    showNotification('Export initiated successfully', 'success');
+  } catch (error) {
+    console.error('Export error:', error);
+    showNotification('Failed to export policy data', 'error');
   }
 }
 
 function deleteCurrentPolicy() {
   if (!policyName) {
-    alert('No policy selected for deletion');
+    showNotification('No policy selected for deletion', 'error');
     return;
   }
   
-  if (confirm(`Are you sure you want to delete the policy "${policyName}"? This action cannot be undone.`)) {
-    // This would integrate with your main.js delete functionality
-    if (window.deleteProject) {
-      window.deleteProject(encodeURIComponent(policyName)).then(() => {
-        alert('Policy deleted successfully');
+  const contributorCount = 'unknown'; // We'd need to load this from the current data
+  const confirmMessage = `Are you sure you want to delete the policy "${policyName}"?\n\nThis will permanently delete all annotations and files.\n\nThis action cannot be undone.`;
+  
+  if (confirm(confirmMessage)) {
+    showNotification('Deleting policy...', 'info');
+    
+    // Make direct API call since we might not have access to main.js functions
+    fetch(`${API_BASE}/policies/${encodeURIComponent(policyName)}`, {
+      method: 'DELETE'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to delete policy');
+      }
+      return response.json();
+    })
+    .then(data => {
+      showNotification('Policy deleted successfully', 'success');
+      setTimeout(() => {
         window.location.href = 'index.html';
-      }).catch(error => {
-        alert('Failed to delete policy: ' + error.message);
-      });
-    } else {
-      alert('Delete functionality not available. Please use the main dashboard.');
-    }
+      }, 1500);
+    })
+    .catch(error => {
+      console.error('Error deleting policy:', error);
+      showNotification('Failed to delete policy: ' + error.message, 'error');
+    });
   }
 }
 
-function viewProjectFiles(policyName) {
+async function viewProjectFiles(policyName) {
   if (!policyName) {
-    alert('No policy selected');
+    showNotification('No policy selected', 'error');
     return;
   }
   
-  // This would integrate with your main.js file viewing functionality
-  if (window.viewProjectFiles) {
-    window.viewProjectFiles(policyName);
-  } else {
-    alert('File viewing functionality not available. Please use the main dashboard.');
+  try {
+    showNotification('Loading project files...', 'info');
+    
+    // Fetch policy data from server
+    const response = await fetch(`${API_BASE}/policies/${encodeURIComponent(policyName)}`);
+    if (!response.ok) {
+      throw new Error('Failed to load policy data');
+    }
+    
+    const policyData = await response.json();
+    
+    // Create and show files modal
+    showFilesModal(policyName, policyData);
+    
+  } catch (error) {
+    console.error('Error viewing project files:', error);
+    showNotification('Failed to load project files: ' + error.message, 'error');
   }
 }
+
+function showFilesModal(policyName, policyData) {
+  // Remove existing modal if any
+  const existingModal = document.getElementById('filesModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+  
+  // Create modal
+  const modal = document.createElement('div');
+  modal.id = 'filesModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+  
+  // Build files list
+  let filesHTML = '';
+  let totalFiles = 0;
+  
+  if (policyData.contributors && Object.keys(policyData.contributors).length > 0) {
+    Object.entries(policyData.contributors).forEach(([contributor, contributorData]) => {
+      if (contributorData.uploads && contributorData.uploads.length > 0) {
+        filesHTML += `
+          <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #2d3748; display: flex; align-items: center; gap: 10px;">
+              <span style="width: 30px; height: 30px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold;">
+                ${contributor.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </span>
+              ${contributor}
+            </h4>
+        `;
+        
+        contributorData.uploads.forEach(upload => {
+          totalFiles++;
+          const uploadDate = new Date(upload.uploadedAt).toLocaleString();
+          const fileSize = upload.fileSize ? formatFileSize(upload.fileSize) : 'Unknown size';
+          
+          filesHTML += `
+            <div style="margin: 8px 0; padding: 10px; background: white; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: #2d3748;">${upload.originalName || upload.filename}</div>
+                <div style="font-size: 0.85em; color: #666; margin-top: 2px;">
+                  📅 ${uploadDate} • 📊 ${upload.annotationCount || 0} annotations • 💾 ${fileSize}
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; margin-left: 15px;">
+                <button onclick="downloadProjectFile('${encodeURIComponent(policyName)}', '${encodeURIComponent(contributor)}', '${encodeURIComponent(upload.storedAs || upload.filename)}')" 
+                        style="padding: 6px 12px; background: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;"
+                        title="Download file">
+                  📥 Download
+                </button>
+                <button onclick="deleteProjectFile('${encodeURIComponent(policyName)}', '${encodeURIComponent(contributor)}', '${encodeURIComponent(upload.storedAs || upload.filename)}', '${encodeURIComponent(upload.originalName || upload.filename)}')" 
+                        style="padding: 6px 12px; background: #e53e3e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;"
+                        title="Delete file">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        
+        filesHTML += '</div>';
+      }
+    });
+  }
+  
+  if (totalFiles === 0) {
+    filesHTML = '<p style="text-align: center; color: #666; font-style: italic; padding: 40px;">No files found for this policy.</p>';
+  }
+  
+  // Create modal content
+  const modalContent = document.createElement('div');
+  modalContent.style.cssText = `
+    background: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  `;
+  
+  modalContent.innerHTML = `
+    <div style="padding: 25px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <h2 style="margin: 0; color: #2d3748;">Project Files</h2>
+        <p style="margin: 5px 0 0 0; color: #666;">${policyName}</p>
+      </div>
+      <button onclick="closeFilesModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 5px;">&times;</button>
+    </div>
+    <div style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #e2e8f0;">
+      <strong>Total Files:</strong> ${totalFiles} • 
+      <strong>Contributors:</strong> ${Object.keys(policyData.contributors || {}).length} •
+      <strong>Last Updated:</strong> ${new Date(policyData.lastUpdated || Date.now()).toLocaleDateString()}
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: 20px;">
+      ${filesHTML}
+    </div>
+  `;
+  
+  modal.appendChild(modalContent);
+  document.body.appendChild(modal);
+  
+  // Close modal when clicking backdrop
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeFilesModal();
+    }
+  });
+}
+
+function closeFilesModal() {
+  const modal = document.getElementById('filesModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+// Delete individual file within a policy
+async function deleteProjectFile(policyName, contributor, fileName, displayName) {
+  const confirmMessage = `Are you sure you want to delete "${displayName}" uploaded by ${contributor}?\n\nThis action cannot be undone.`;
+  
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+  
+  try {
+    showNotification('Deleting file...', 'info');
+    
+    const response = await fetch(`${API_BASE}/policies/${policyName}/contributors/${encodeURIComponent(contributor)}/files/${encodeURIComponent(fileName)}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Failed to delete file: ${errorData.error}`);
+    }
+    
+    showNotification('File deleted successfully', 'success');
+    
+    // Refresh the files modal
+    await viewProjectFiles(decodeURIComponent(policyName));
+    
+    // If this is the current policy being viewed, reload the analysis
+    if (decodeURIComponent(policyName) === getCurrentPolicyName()) {
+      await loadPolicyFromServer(decodeURIComponent(policyName));
+    }
+    
+  } catch (error) {
+    console.error('Error deleting file:', error);
+    showNotification('Failed to delete file: ' + error.message, 'error');
+  }
+}
+
+// Download individual file
+async function downloadProjectFile(policyName, contributor, fileName) {
+  try {
+    showNotification('Preparing download...', 'info');
+    
+    const response = await fetch(`${API_BASE}/policies/${policyName}/contributors/${encodeURIComponent(contributor)}/files/${encodeURIComponent(fileName)}/download`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to download file');
+    }
+    
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    
+    // Get filename from response headers or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = fileName;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    // Create download link
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification('Download started', 'success');
+    
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    showNotification('Failed to download file: ' + error.message, 'error');
+  }
+}
+
+// Utility function to get current policy name
+function getCurrentPolicyName() {
+  return policyName;
+}
+
+// Utility function to format file size
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Utility function to show notifications - COMPLETED
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    z-index: 1000;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    animation: slideInRight 0.3s ease;
+  `;
+  
+  if (type === 'error') {
+    notification.style.background = 'linear-gradient(45deg, #e53e3e, #c53030)';
+  } else if (type === 'success') {
+    notification.style.background = 'linear-gradient(45deg, #48bb78, #38a169)';
+  } else {
+    notification.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+  }
+  
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  // Auto-remove after 4 seconds
+  setTimeout(() => {
+    if (document.body.contains(notification)) {
+      notification.style.animation = 'slideOutRight 0.3s ease';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }
+  }, 4000);
+}
+
+// Add CSS animations for notifications
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOutRight {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+  
+  .loading {
+    color: #667eea;
+    font-style: italic;
+  }
+  
+  .error {
+    color: #e53e3e;
+    font-weight: 600;
+  }
+  
+  .highlight {
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+  }
+  
+  .highlight:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+  
+  .highlight.green {
+    background-color: rgba(72, 187, 120, 0.3);
+    border: 1px solid rgba(72, 187, 120, 0.5);
+  }
+  
+  .highlight.yellow {
+    background-color: rgba(255, 193, 7, 0.3);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+  }
+  
+  .highlight.red {
+    background-color: rgba(229, 62, 62, 0.3);
+    border: 1px solid rgba(229, 62, 62, 0.5);
+  }
+`;
+document.head.appendChild(style);
+
+// Global function exports for HTML onclick handlers
+window.exportPolicyData = exportPolicyData;
+window.deleteCurrentPolicy = deleteCurrentPolicy;
+window.viewProjectFiles = viewProjectFiles;
+window.showManualUpload = showManualUpload;
+window.showNotification = showNotification;
+window.closeFilesModal = closeFilesModal;
+window.deleteProjectFile = deleteProjectFile;
+window.downloadProjectFile = downloadProjectFile;

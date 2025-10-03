@@ -18,7 +18,8 @@ body {
   padding: 20px;
   display: flex;
   gap: 30px;
-  min-height: calc(100vh - 40px);
+  height: calc(100vh - 40px);
+  overflow: hidden;
 }
 
 .main-content {
@@ -28,7 +29,10 @@ body {
   border-radius: 20px;
   padding: 30px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  overflow: auto;
+  overflow-y: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar {
@@ -38,8 +42,10 @@ body {
   border-radius: 20px;
   padding: 25px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  max-height: calc(100vh - 80px);
+  height: 100%;
   overflow-y: auto;
+  position: sticky;
+  top: 0;
 }
 
 .back-button {
@@ -152,43 +158,44 @@ body {
 
 .stats-section {
   background: #f8f9fa;
-  padding: 20px;
+  padding: 15px;
   border-radius: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
   border-left: 4px solid #667eea;
 }
 
 .stats-section h3 {
   color: #667eea;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+  font-size: 1.1em;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
-  margin-top: 15px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .stat-item {
   text-align: center;
   background: white;
-  padding: 15px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 6px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .stat-value {
-  font-size: 1.5em;
+  font-size: 1.2em;
   font-weight: 700;
   color: #667eea;
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 
 .stat-label {
   color: #666;
-  font-size: 0.9em;
+  font-size: 0.8em;
 }
 
 .policy-content {
@@ -197,9 +204,17 @@ body {
   border-radius: 15px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-  min-height: 400px;
   line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 80vh;
+  min-height: 400px;
+
+  /* Add spacing below content */
+  margin-bottom: 30px;
 }
+
+
 
 .highlight {
   cursor: pointer;
@@ -308,15 +323,22 @@ body {
   .policy-container {
     flex-direction: column;
     gap: 20px;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
   
   .main-content,
   .sidebar {
     flex: none;
+    height: auto;
+    overflow: visible;
+    position: static;
   }
   
-  .sidebar {
+  .policy-content {
     max-height: none;
+    overflow: visible;
   }
 }
 

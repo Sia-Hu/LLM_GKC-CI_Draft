@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <title>Policy Analysis - GKCCI Dashboard</title>
   
+  <!-- Stylesheets -->
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/policyPage.css">
 </head>
@@ -49,6 +50,10 @@
         </div>
       </div>
       
+      <div class="policy-content" id="policyContainer">
+        Select a file or load from server data to view annotations
+      </div>
+            
       <div class="stats-section">
         <h3>📈 Analysis Statistics</h3>
         <div id="stats">Load a JSON file or select from server data to see statistics</div>
@@ -62,18 +67,34 @@
             <span class="stat-label">Full Agreements</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value" id="agreementRate">0%</span>
-            <span class="stat-label">Agreement Rate</span>
+            <!-- ✅ Replaced "Agreement Rate" with F1 Score -->
+            <span class="stat-value" id="f1Score">0%</span>
+            <span class="stat-label">F1 Score</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="jaccardScore">0%</span>
+            <span class="stat-label">Jaccard Score</span>
           </div>
           <div class="stat-item">
             <span class="stat-value" id="totalAnnotators">0</span>
             <span class="stat-label">Total Annotators</span>
           </div>
         </div>
-      </div>
-      
-      <div class="policy-content" id="policyContainer">
-        Select a file or load from server data to view annotations
+        <div class="metrics-guide" style="margin-top: 20px;">
+          <h3>📊 Metrics Guide</h3>
+          <div style="font-size: 14px; color: #444; line-height: 1.5;">
+            <p><b>F1 Score</b>: Think of this as how well annotators <i>agree on both what to mark and what not to mark</i>. 
+            A high F1 means annotators are consistent in identifying the same spans of text.</p>
+
+            <p><b>Jaccard Score</b>: This measures the <i>overlap</i> between annotators’ choices compared to everything they marked. 
+            A high Jaccard means most of what one person marked is also marked by others.</p>
+
+            <p><b>Distinct Spans</b>: The number of unique text segments identified across all annotators.</p>
+
+            <p><b>Full Agreements</b>: How many spans were labeled the same way by multiple annotators.</p>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -107,6 +128,7 @@
       </div>
     </div>
   </div>
+
   <script src="js/policyPage.js"></script>
-</body>
+  </body>
 </html>
