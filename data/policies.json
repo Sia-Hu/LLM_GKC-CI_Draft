@@ -1,24 +1,32 @@
 {
-  "Meta": {
-    "createdAt": "2025-10-03T15:44:51.176Z",
+  "Amazon": {
+    "createdAt": "2025-10-08T03:23:16.905Z",
     "contributors": {
-      "Matt": {
+      "dfafdaf": {
         "uploads": [
           {
-            "filename": "test1002.json",
-            "storedAs": "1759506290872_test1002.json",
-            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Meta/1759506290872_test1002.json",
+            "filename": "task_219008382.json",
+            "storedAs": "1759893796297_task_219008382.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Amazon/1759893796297_task_219008382.json",
             "annotationCount": 3,
-            "uploadedAt": "2025-10-03T15:44:51.176Z",
+            "uploadedAt": "2025-10-08T03:23:16.905Z",
+            "source": "upload"
+          },
+          {
+            "filename": "task_219008382.json",
+            "storedAs": "1759893796293_task_219008382.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Amazon/1759893796293_task_219008382.json",
+            "annotationCount": 3,
+            "uploadedAt": "2025-10-08T03:23:16.908Z",
             "source": "upload"
           }
         ],
         "email": "",
         "university": "University of Iowa",
-        "totalAnnotations": 3
+        "totalAnnotations": 6
       }
     },
-    "totalAnnotations": 3,
-    "lastUpdated": "2025-10-03T15:44:51.176Z"
+    "totalAnnotations": 6,
+    "lastUpdated": "2025-10-08T03:23:16.908Z"
   }
 }
