@@ -613,7 +613,15 @@ function processTask(task) {
       span.className='highlight '+className;
       span.dataset.details=details;
       span.appendChild(frag);
-      range.insertNode(span);
+
+      const firstChild = frag.firstElementChild;
+      if (firstChild && ['P', 'DIV', 'LI'].includes(firstChild.tagName)) {
+        firstChild.classList.add(`highlight`, colorClass);
+        firstChild.dataset.details = details;
+        range.insertNode(frag);
+      } else {
+        range.insertNode(span);
+      }
     } catch(e){console.warn('wrap failed',seg,e);}
   });
 

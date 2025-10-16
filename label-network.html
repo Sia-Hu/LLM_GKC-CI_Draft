@@ -8,9 +8,9 @@
 </head>
 <body>
   <div class="container">
-    <h1>Label Relations Network Visualizer</h1>
+    <h1 id="pageTitle">Label Relations Network Visualizer</h1>
 
-    <div class="upload-section">
+    <div id="uploadSection" class="upload-section">
       <h2>Upload JSON File</h2>
       <div class="upload-area" id="uploadArea">
         <p>Drag and drop your JSON file here</p>
@@ -25,12 +25,15 @@
       <div class="success-message" id="successMessage"></div>
     </div>
 
-    <div id="visualizations"></div>
+    <div id="autoLoadMessage" class="success-message" style="display:none;"></div>
+
+    <div id="networkGraph" class="network-container"></div>
   </div>
 
-  <!-- D3 library -->
+  <!-- D3 -->
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <!-- Our JS -->
+  <!-- Main JS -->
   <script src="js/label-relation.js"></script>
 </body>
+
 </html>

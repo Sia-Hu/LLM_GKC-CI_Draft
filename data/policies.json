@@ -1,32 +1,112 @@
 {
-  "Amazon": {
-    "createdAt": "2025-10-08T03:23:16.905Z",
+  "Google": {
+    "createdAt": "2025-10-09T03:56:29.282Z",
     "contributors": {
-      "dfafdaf": {
+      "ad": {
         "uploads": [
           {
-            "filename": "task_219008382.json",
-            "storedAs": "1759893796297_task_219008382.json",
-            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Amazon/1759893796297_task_219008382.json",
-            "annotationCount": 3,
-            "uploadedAt": "2025-10-08T03:23:16.905Z",
-            "source": "upload"
-          },
-          {
-            "filename": "task_219008382.json",
-            "storedAs": "1759893796293_task_219008382.json",
-            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Amazon/1759893796293_task_219008382.json",
-            "annotationCount": 3,
-            "uploadedAt": "2025-10-08T03:23:16.908Z",
+            "filename": "Sep2-test-2ppl.json",
+            "storedAs": "1759982189195_Sep2-test-2ppl.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Google/1759982189195_Sep2-test-2ppl.json",
+            "annotationCount": 2,
+            "uploadedAt": "2025-10-09T03:56:29.282Z",
             "source": "upload"
           }
         ],
         "email": "",
-        "university": "University of Iowa",
-        "totalAnnotations": 6
+        "university": "",
+        "totalAnnotations": 2
       }
     },
-    "totalAnnotations": 6,
-    "lastUpdated": "2025-10-08T03:23:16.908Z"
+    "totalAnnotations": 2,
+    "lastUpdated": "2025-10-09T03:56:29.282Z"
+  },
+  "df": {
+    "createdAt": "2025-10-09T04:44:02.484Z",
+    "contributors": {
+      "dfafdaf": {
+        "uploads": [
+          {
+            "filename": "Sep2-test-2ppl.json",
+            "storedAs": "1759985042427_Sep2-test-2ppl.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/df/1759985042427_Sep2-test-2ppl.json",
+            "annotationCount": 2,
+            "uploadedAt": "2025-10-09T04:44:02.484Z",
+            "source": "upload"
+          }
+        ],
+        "email": "",
+        "university": "Colgate University",
+        "totalAnnotations": 2
+      }
+    },
+    "totalAnnotations": 2,
+    "lastUpdated": "2025-10-09T04:44:02.484Z"
+  },
+  "Meta": {
+    "createdAt": "2025-10-09T18:09:31.458Z",
+    "contributors": {
+      "Matt": {
+        "uploads": [
+          {
+            "filename": "task_219008382.json",
+            "storedAs": "1760033370791_task_219008382.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/Meta/1760033370791_task_219008382.json",
+            "annotationCount": 3,
+            "uploadedAt": "2025-10-09T18:09:31.458Z",
+            "source": "upload"
+          }
+        ],
+        "email": "",
+        "university": "Colgate University",
+        "totalAnnotations": 3
+      }
+    },
+    "totalAnnotations": 3,
+    "lastUpdated": "2025-10-09T18:09:31.458Z"
+  },
+  "oko": {
+    "createdAt": "2025-10-10T18:12:32.540Z",
+    "contributors": {
+      "asdf": {
+        "uploads": [
+          {
+            "filename": "task_219408703.json",
+            "storedAs": "1760119952067_task_219408703.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/oko/1760119952067_task_219408703.json",
+            "annotationCount": 1,
+            "uploadedAt": "2025-10-10T18:12:32.540Z",
+            "source": "upload"
+          }
+        ],
+        "email": "",
+        "university": "Colgate University",
+        "totalAnnotations": 1
+      }
+    },
+    "totalAnnotations": 1,
+    "lastUpdated": "2025-10-10T18:12:32.540Z"
+  },
+  "US NEWS": {
+    "createdAt": "2025-10-10T18:30:23.617Z",
+    "contributors": {
+      "Matt": {
+        "uploads": [
+          {
+            "filename": "task_220414854.json",
+            "storedAs": "1760121022979_task_220414854.json",
+            "filePath": "/Users/liuziyu/Desktop/Colgate University/COSC/Research/LLM_GKC-CI_Draft/data/projects/US NEWS/1760121022979_task_220414854.json",
+            "annotationCount": 3,
+            "uploadedAt": "2025-10-10T18:30:23.617Z",
+            "source": "upload"
+          }
+        ],
+        "email": "",
+        "university": "",
+        "totalAnnotations": 3
+      }
+    },
+    "totalAnnotations": 3,
+    "lastUpdated": "2025-10-10T18:30:23.617Z"
   }
 }

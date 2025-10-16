@@ -27,8 +27,10 @@ app.use(express.static('.'));
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
         try {
-            await ensureDirectoryExists(UPLOADS_DIR);
-            cb(null, UPLOADS_DIR);
+            const policyName = req.body.policyName || 'unassigned';
+            const policyDir = path.join(DATA_DIR, 'projects', sanitizeFolderName(policyName));
+            await ensureDirectoryExists(policyDir);
+            cb(null, policyDir);
         } catch (error) {
             cb(error);
         }

@@ -1,6 +1,3 @@
-// Label Relations Network JS
-
-// Colors for different labels
 const labelColors = {
   'Sender': '#3498db',
   'Recipient': '#2ecc71',
@@ -12,37 +9,20 @@ const labelColors = {
   'Aim': '#34495e'
 };
 
-// Upload area drag/drop
-const uploadArea = document.getElementById('uploadArea');
-
-uploadArea.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  uploadArea.classList.add('dragover');
-});
-uploadArea.addEventListener('dragleave', () => {
-  uploadArea.classList.remove('dragover');
-});
-uploadArea.addEventListener('drop', (e) => {
-  e.preventDefault();
-  uploadArea.classList.remove('dragover');
-  const file = e.dataTransfer.files[0];
-  if (file) processFile(file);
-});
-document.getElementById('fileInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (file) processFile(file);
-});
-
+// ----------------------------------------------
 // Helpers
+// ----------------------------------------------
+
 function truncateText(text, maxLength) {
   if (!text) return '';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  return text.length <= maxLength ? text : text.substring(0, maxLength) + '...';
 }
+
 function wrapText(text, maxWidth) {
   const words = text.split(' ');
   const lines = [];
   let currentLine = '';
+
   words.forEach(word => {
     if ((currentLine + word).length > maxWidth) {
       if (currentLine) lines.push(currentLine.trim());
@@ -51,48 +31,14 @@ function wrapText(text, maxWidth) {
       currentLine += word + ' ';
     }
   });
+
   if (currentLine) lines.push(currentLine.trim());
   return lines.slice(0, 3);
 }
 
-// File processor
-async function processFile(file) {
-  const errorMsg = document.getElementById('errorMessage');
-  const successMsg = document.getElementById('successMessage');
-
-  errorMsg.style.display = 'none';
-  successMsg.style.display = 'none';
-
-  if (!file.name.endsWith('.json')) {
-    errorMsg.textContent = 'Please upload a JSON file';
-    errorMsg.style.display = 'block';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      successMsg.textContent = 'File loaded successfully: ' + file.name;
-      successMsg.style.display = 'block';
-
-      document.getElementById('visualizations').innerHTML = '';
-      document.getElementById('visualizations').style.display = 'block';
-
-      createVisualizations(data);
-    } catch (error) {
-      errorMsg.textContent = 'Error parsing JSON: ' + error.message;
-      errorMsg.style.display = 'block';
-    }
-  };
-  reader.onerror = () => {
-    errorMsg.textContent = 'Error reading file';
-    errorMsg.style.display = 'block';
-  };
-  reader.readAsText(file);
-}
-
-// Find connected components
+// ----------------------------------------------
+// Find connected components (subgraphs)
+// ----------------------------------------------
 function findConnectedComponents(nodes, links) {
   const nodeMap = new Map(nodes.map(n => [n.id, n]));
   const adjList = new Map();
@@ -100,11 +46,13 @@ function findConnectedComponents(nodes, links) {
   links.forEach(link => {
     const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
     const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-    adjList.get(sourceId).push(targetId);
-    adjList.get(targetId).push(sourceId);
+    if (adjList.has(sourceId)) adjList.get(sourceId).push(targetId);
+    if (adjList.has(targetId)) adjList.get(targetId).push(sourceId);
   });
+
   const visited = new Set();
   const components = [];
+
   function dfs(nodeId, component) {
     visited.add(nodeId);
     component.push(nodeMap.get(nodeId));
@@ -112,6 +60,7 @@ function findConnectedComponents(nodes, links) {
       if (!visited.has(neighborId)) dfs(neighborId, component);
     });
   }
+
   nodes.forEach(node => {
     if (!visited.has(node.id)) {
       const component = [];
@@ -119,20 +68,26 @@ function findConnectedComponents(nodes, links) {
       components.push(component);
     }
   });
+
+  // Sort components by Y position for cleaner layout
   components.sort((a, b) => {
     const minA = Math.min(...a.map(n => n.startPos));
     const minB = Math.min(...b.map(n => n.startPos));
     return minA - minB;
   });
+
   return components;
 }
 
-// Graph drawing
+// ----------------------------------------------
+// Main D3 network rendering
+// ----------------------------------------------
 function createNetworkGraph(annotation, containerId) {
-  const result = annotation.result;
+  const result = annotation.result || [];
   const nodes = new Map();
   const links = [];
 
+  // Build nodes and links
   result.forEach(item => {
     if (item.type === 'labels' && item.value.labels) {
       item.value.labels.forEach(label => {
@@ -157,12 +112,16 @@ function createNetworkGraph(annotation, containerId) {
   const nodesArray = Array.from(nodes.values());
   const components = findConnectedComponents(nodesArray, links);
 
-  const container = d3.select('#' + containerId);
-  const width = container.node().getBoundingClientRect().width;
+  // Prepare SVG container
+  const container = d3.select(`#${containerId}`);
+  container.selectAll('*').remove(); // clear previous
+  const width = container.node().getBoundingClientRect().width || 800;
   const height = 700;
+
   const svg = container.append('svg')
     .attr('width', width)
     .attr('height', height);
+
   const g = svg.append('g');
   const zoom = d3.zoom().scaleExtent([0.5, 3])
     .on('zoom', (event) => g.attr('transform', event.transform));
@@ -190,6 +149,8 @@ function createNetworkGraph(annotation, containerId) {
       .data(componentLinks)
       .join('line')
       .attr('class', 'link')
+      .attr('stroke', '#999')
+      .attr('stroke-opacity', 0.6)
       .attr('stroke-width', 2);
 
     const node = g.append('g')
@@ -211,20 +172,23 @@ function createNetworkGraph(annotation, containerId) {
     node.append('text')
       .attr('class', 'node-label-type')
       .attr('dy', -45)
+      .attr('text-anchor', 'middle')
       .text(d => d.type);
 
     node.append('text')
       .attr('class', 'node-label-position')
       .attr('dy', -33)
+      .attr('text-anchor', 'middle')
       .text(d => '(' + d.startPos + '-' + d.endPos + ')');
 
-    node.each(function(d) {
+    node.each(function (d) {
       const nodeGroup = d3.select(this);
       const textLines = wrapText(truncateText(d.text, 60), 20);
       textLines.forEach((line, i) => {
         nodeGroup.append('text')
           .attr('class', 'node-label-text')
           .attr('dy', -10 + (i * 12))
+          .attr('text-anchor', 'middle')
           .text(line);
       });
     });
@@ -238,7 +202,7 @@ function createNetworkGraph(annotation, containerId) {
         .attr('y1', d => d.source.y)
         .attr('x2', d => d.target.x)
         .attr('y2', d => d.target.y);
-      node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
     });
 
     function dragstarted(event) {
@@ -262,56 +226,96 @@ function createNetworkGraph(annotation, containerId) {
   return { nodes: nodesArray.length, links: links.length, components: components.length };
 }
 
-// Build visualizations per task/annotation
-function createVisualizations(data) {
-  data.forEach((item, taskIndex) => {
-    const vizContainer = document.getElementById('visualizations');
-    const taskSection = document.createElement('div');
-    taskSection.className = 'task-section';
-    const taskHeader = document.createElement('div');
-    taskHeader.className = 'task-header';
-    taskHeader.textContent = 'Task ID: ' + item.id + ' | File: ' + item.file_upload;
-    const annotationsContainer = document.createElement('div');
-    annotationsContainer.className = 'annotations-container';
-    taskSection.appendChild(taskHeader);
-    taskSection.appendChild(annotationsContainer);
-    vizContainer.appendChild(taskSection);
+// ----------------------------------------------
+// Public renderer: called by policyPage.js
+// ----------------------------------------------
+window.renderLabelRelations = function (annotationData, containerId = 'networkGraph') {
+  const container = document.getElementById(containerId);
+  if (!container) {
+    console.warn('No container found for label relations');
+    return;
+  }
+  container.innerHTML = '';
+  console.log('Rendering label relations network...');
 
-    item.annotations.forEach((annotation, annIndex) => {
-      const containerId = 'annotation-' + taskIndex + '-' + annIndex;
-      const card = document.createElement('div');
-      card.className = 'annotation-card';
-      const header = document.createElement('div');
-      header.className = 'annotation-header';
-      const annotatorName = 'Annotator ' + annotation.completed_by;
-      header.innerHTML = '<div class="annotation-title">' + annotatorName +
-        ' (ID: ' + annotation.id + ')</div>' +
-        '<div class="annotation-meta">Created: ' +
-        new Date(annotation.created_at).toLocaleString() + '</div>';
-      const networkDiv = document.createElement('div');
-      networkDiv.id = containerId;
-      networkDiv.className = 'network-container';
-      card.appendChild(header);
-      card.appendChild(networkDiv);
-      annotationsContainer.appendChild(card);
+  // Create visualization
+  const stats = createNetworkGraph(annotationData, containerId);
 
-      setTimeout(() => {
-        const stats = createNetworkGraph(annotation, containerId);
-        const statsDiv = document.createElement('div');
-        statsDiv.className = 'stats';
-        statsDiv.innerHTML = '<strong>Statistics:</strong> ' + stats.nodes +
-          ' labels, ' + stats.links + ' relations, ' + stats.components +
-          ' subgraphs | <strong>Tip:</strong> Scroll to zoom, drag nodes to reposition';
-        card.appendChild(statsDiv);
-        const legend = document.createElement('div');
-        legend.className = 'legend';
-        Object.entries(labelColors).forEach(([label, color]) => {
-          legend.innerHTML += '<div class="legend-item">' +
-            '<div class="legend-color" style="background-color: ' + color + '"></div>' +
-            '<span>' + label + '</span></div>';
-        });
-        card.appendChild(legend);
-      }, 100 * annIndex);
+  // Attach node click handler to broadcast event
+  d3.selectAll(`#${containerId} .node circle`)
+    .on('click', function (event, d) {
+      console.log('Clicked node:', d);
+      const customEvent = new CustomEvent('graphNodeClick', {
+        detail: { start: d.startPos, end: d.endPos, text: d.text }
+      });
+      window.dispatchEvent(customEvent);
     });
-  });
-}
+
+  return stats;
+};
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const params = new URLSearchParams(window.location.search);
+  const policyName = params.get("policy");
+  const uploadSection = document.getElementById("uploadSection");
+  const autoMsg = document.getElementById("autoLoadMessage");
+
+  if (policyName) {
+    console.log(`Auto-loading label relation graph for: ${policyName}`);
+    document.getElementById("pageTitle").textContent =
+      `Label Relations: ${policyName}`;
+    if (uploadSection) uploadSection.style.display = "none"; // Hide upload UI
+    if (autoMsg) {
+      autoMsg.textContent = `📡 Automatically loaded network for "${policyName}"`;
+      autoMsg.style.display = "block";
+    }
+
+    try {
+      const res = await fetch(`/api/policies/${encodeURIComponent(policyName)}`);
+      if (!res.ok) throw new Error("Policy not found");
+      const policyData = await res.json();
+
+      // Find the most recent file (same logic as policyPage)
+      let latestFile = null;
+      let latestTime = 0;
+      Object.values(policyData.contributors).forEach(c => {
+        (c.uploads || []).forEach(upload => {
+          const t = new Date(upload.uploadedAt).getTime();
+          if (t > latestTime && upload.annotationCount > 0) {
+            latestFile = upload;
+            latestTime = t;
+          }
+        });
+      });
+
+      if (!latestFile) {
+        throw new Error("No valid annotation file found.");
+      }
+
+      const fileRes = await fetch(
+        `/api/policy-file/${encodeURIComponent(policyName)}/${encodeURIComponent(latestFile.storedAs)}`
+      );
+      if (!fileRes.ok) throw new Error("Failed to fetch annotation data");
+
+      const annotationData = await fileRes.json();
+      const task = Array.isArray(annotationData) ? annotationData[0] : annotationData;
+
+      console.log("Rendering relation graph for task:", task.id || "unknown");
+      if (window.renderLabelRelations) {
+        renderLabelRelations(task.annotations[0], "networkGraph");
+      } else {
+        console.error("renderLabelRelations is not defined");
+      }
+    } catch (err) {
+      console.error("Auto-load error:", err);
+      const msg = document.getElementById("errorMessage");
+      msg.textContent = `❌ Failed to load data for "${policyName}": ${err.message}`;
+      msg.style.display = "block";
+      if (uploadSection) uploadSection.style.display = "block";
+    }
+  } else {
+    // No ?policy= in URL → show manual upload UI
+    console.log("No policy name detected; waiting for manual upload.");
+    if (uploadSection) uploadSection.style.display = "block";
+  }
+});
