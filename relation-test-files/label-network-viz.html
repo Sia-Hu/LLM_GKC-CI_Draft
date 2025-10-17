@@ -678,9 +678,10 @@
                     const header = document.createElement('div');
                     header.className = 'annotation-header';
                     const uniqueCount = uniqueSubgraphs[annIndex].length;
-                    header.innerHTML = '<div class="annotation-title">Annotator ' + annotation.completed_by + '</div>' +
+                    const annotatorEmail = annotation.completed_by?.email || 'Unknown';
+                    header.innerHTML = '<div class="annotation-title">Annotator ' + annotatorEmail + '</div>' +
                         '<div class="annotation-meta">' + uniqueCount + ' unique subgraph(s)</div>';
-                    
+
                     const networkDiv = document.createElement('div');
                     networkDiv.id = containerId;
                     networkDiv.className = 'network-container';
