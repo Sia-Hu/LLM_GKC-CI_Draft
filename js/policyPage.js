@@ -552,13 +552,14 @@ function processTask(task) {
   const allUsers = new Set();
   
   (task.annotations || []).forEach(annObj => {
-    allUsers.add(annObj.completed_by);
+    const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+    allUsers.add(userEmail);
     (annObj.result || []).forEach(r => {
       if (r.value && r.value.globalOffsets) {
         annSpans.push({
           start: Number(r.value.globalOffsets.start),
           end: Number(r.value.globalOffsets.end),
-          user: annObj.completed_by,
+          user: userEmail,
           label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
           text: r.value.text || ''
         });

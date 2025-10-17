@@ -11,14 +11,14 @@
 <body>
   <div class="policy-container">
     <div class="main-content">
-      <a href="index.html" class="back-button">â† Back to Dashboard</a>
+      <a href="index.html" class="back-button">← Back to Dashboard</a>
       <h1 class="page-title" id="pageTitle">Policy Analysis</h1>
 
       <div class="policy-scrollable">
         <div id="serverDataInfo" style="display: none;" class="server-info">
           <div style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div>
-              <strong>ðŸ“Š Server Data Loaded</strong><br>
+              <strong>📊 Server Data Loaded</strong><br>
               <span id="dataSource"></span>
             </div>
             <button onclick="showManualUpload()">Upload New File</button>
@@ -26,7 +26,7 @@
         </div>
 
         <div id="fileUploadSection" class="upload-section">
-          <h3>ðŸ“ Upload Label Studio Export</h3>
+          <h3>📁 Upload Label Studio Export</h3>
           <input type="file" id="fileInput" accept=".json" />
           <div style="margin-top: 8px; font-size: 14px; color: #666;">
             Select a Label Studio JSON export to analyze annotation agreements
@@ -40,7 +40,7 @@
         </div>
 
         <!-- <section id="labelRelationSection" class="label-relation-section">
-          <h3>ðŸ”— Label Relations Network</h3>
+          <h3>🔗 Label Relations Network</h3>
           <div id="labelRelationContainer">
             <div id="networkGraph"></div>
           </div>
@@ -51,7 +51,7 @@
         </div>
 
         <div class="stats-section">
-          <h3>ðŸ“ˆ Analysis Statistics</h3>
+          <h3>📊 Analysis Statistics</h3>
           <div id="stats">Load a JSON file or select from server data to see statistics</div>
           <div class="stats-grid">
             <div class="stat-item">
@@ -106,7 +106,7 @@
         </a>
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
           <button class="action-btn btn-primary" onclick="viewProjectFiles(policyName)" style="width: 100%;">
-            ðŸ“ View All Files
+            📁 View All Files
           </button>
         </div>
       </div>
