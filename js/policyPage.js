@@ -188,14 +188,22 @@ function parseHTMLBody(htmlString) {
   }
 }
 
+function normalizeText(str) {
+  return (str || "")
+    .replace(/\s+/g, " ")
+    .replace(/\u00A0/g, " ")
+    .trim();
+}
+
 function buildTextNodeIndex(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   const nodes = [];
   let node;
   let idx = 0;
   while ((node = walker.nextNode())) {
-    const len = node.nodeValue ? node.nodeValue.length : 0;
-    nodes.push({ node: node, start: idx, end: idx + len });
+    const normText = normalizeText(node.nodeValue);
+    const len = normText.length;
+    nodes.push({ node: node, start: idx, end: idx + len, text: normText });
     idx += len;
   }
   return { nodes, totalLength: idx };
@@ -216,19 +224,25 @@ function findNodeForOffset(nodesIndex, offset) {
   return null;
 }
 
-function computeColorAndDetails(coveringAnns) {
-  if (!coveringAnns || coveringAnns.length === 0) return { className: null, details: '' };
-  
-  const labels = [...new Set(coveringAnns.map(a => a.label))];
-  const users = [...new Set(coveringAnns.map(a => a.user))];
-  let className = 'yellow';
-  if (labels.length === 1 && users.length > 1) className = 'green';
-  else if (labels.length > 1) className = 'red';
+function computeColorAndDetails(coveringAnns, allAnnotators) {
+  if (!coveringAnns || coveringAnns.length === 0) {
+    return { className: null, details: '' };
+  }
 
-  const orderedLabels = [
-    "Sender", "Subject", "Information Type", "Recipient", 
-    "Aim", "Condition", "Modalities", "Consequence"
-  ];
+  const labels = [...new Set(coveringAnns.map(a => a.label).filter(Boolean))];
+  const users = [...new Set(coveringAnns.map(a => a.user))];
+  const allUsers = [...allAnnotators];
+
+  let className;
+  if (labels.length === 1 && users.length === allUsers.length) {
+    className = 'green'; // full agreement
+  } else if (labels.length > 1) {
+    className = 'red'; // conflicting labels
+  } else {
+    className = 'yellow'; // partial labeling
+  }
+
+  // Group users by label
   const labelsToUsers = {};
   coveringAnns.forEach(ann => {
     if (!ann.label) return;
@@ -239,41 +253,35 @@ function computeColorAndDetails(coveringAnns) {
   });
 
   const detailsArr = [];
-  const processedLabels = new Set();
+  const processedUsers = new Set();
 
-  orderedLabels.forEach(label => {
-    if (labelsToUsers[label]) {
-      let section = `<b>${label}</b><br>`;
-      section += [...labelsToUsers[label]].map(user => `&nbsp;&nbsp;- Annotator ${user}`).join('<br>');
-      detailsArr.push(section);
-      processedLabels.add(label);
-    }
+  // Add label sections
+  Object.entries(labelsToUsers).forEach(([label, usersSet]) => {
+    let section = `<b>${label}</b><br>`;
+    section += [...usersSet].map(u => `&nbsp;&nbsp;- ${u}`).join('<br>');
+    detailsArr.push(section);
+    usersSet.forEach(u => processedUsers.add(u));
   });
 
-  Object.keys(labelsToUsers).forEach(label => {
-    if (!processedLabels.has(label)) {
-      let section = `<b>${label}</b><br>`;
-      section += [...labelsToUsers[label]].map(user => `&nbsp;&nbsp;- Annotator ${user}`).join('<br>');
-      detailsArr.push(section);
-    }
-  });
-  
-  const details = detailsArr.join('<br><br>');
-  return { className, details };
+  // Add "Not labeled" section for annotators missing in this segment
+  const notLabeledUsers = allUsers.filter(u => !processedUsers.has(u));
+  if (notLabeledUsers.length > 0) {
+    let section = `<b>Not labeled</b><br>`;
+    section += notLabeledUsers.map(u => `&nbsp;&nbsp;- ${u}`).join('<br>');
+    detailsArr.push(section);
+  }
+
+  return { className, details: detailsArr.join('<br><br>') };
 }
 
 function updateStatsDisplay(distinctSpansCount, fullAgreements, totalAnnotators) {
   const distinctSpansEl = document.getElementById('distinctSpans');
   const fullAgreementsEl = document.getElementById('fullAgreements');
-  const agreementRateEl = document.getElementById('agreementRate');
   const totalAnnotatorsEl = document.getElementById('totalAnnotators');
   
   if (distinctSpansEl) distinctSpansEl.textContent = distinctSpansCount;
   if (fullAgreementsEl) fullAgreementsEl.textContent = fullAgreements;
   if (totalAnnotatorsEl) totalAnnotatorsEl.textContent = totalAnnotators;
-  
-  const agreementRate = distinctSpansCount > 0 ? Math.round((fullAgreements / distinctSpansCount) * 100) : 0;
-  if (agreementRateEl) agreementRateEl.textContent = agreementRate + '%';
 }
 
 function calculateF1Metrics(annSpans, allUsers) {
@@ -408,7 +416,7 @@ function calculatePairwiseMetrics(spans1, spans2) {
       
       const span2 = spans2[i];
       
-      // Check for overlap (at least 50% overlap) and same label
+      // Check for overlap and same label
       if (spansOverlap(span1, span2) && span1.label === span2.label) {
         truePositives++;
         processedSpans2.add(i);
@@ -440,99 +448,7 @@ function spansOverlap(span1, span2) {
     return false; // No overlap
   }
 
-  const overlapLength = overlapEnd - overlapStart;
-  const span1Length = end1 - start1;
-  const span2Length = end2 - start2;
-  
-  // Require at least 50% overlap relative to shorter span
-  const minLength = Math.min(span1Length, span2Length);
-  return overlapLength >= 0;
-}
-
-function updateF1Display(metrics) {
-  const precisionEl = document.getElementById('precision');
-  const recallEl = document.getElementById('recall');
-  const f1ScoreEl = document.getElementById('f1Score');
-  
-  if (precisionEl) precisionEl.textContent = metrics.precision + '%';
-  if (recallEl) recallEl.textContent = metrics.recall + '%';
-  if (f1ScoreEl) f1ScoreEl.textContent = metrics.f1Score + '%';
-
-  // Add visual indicator for F1 score quality
-  addF1QualityIndicator(metrics.f1Score);
-}
-
-function normalizeText(str) {
-  return (str || "")
-    .replace(/\s+/g, " ")
-    .replace(/\u00A0/g, " ")
-    .trim();
-}
-
-function buildTextNodeIndex(root) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  const nodes = [];
-  let node;
-  let idx = 0;
-  while ((node = walker.nextNode())) {
-    const normText = normalizeText(node.nodeValue);
-    const len = normText.length;
-    nodes.push({ node: node, start: idx, end: idx + len, text: normText });
-    idx += len;
-  }
-  return { nodes, totalLength: idx };
-}
-
-function addF1QualityIndicator(f1Score) {
-  const f1Item = document.querySelector('.highlight-f1');
-  if (!f1Item) return;
-
-  // Remove existing indicator
-  const existingIndicator = f1Item.querySelector('.f1-quality-indicator');
-  if (existingIndicator) {
-    existingIndicator.remove();
-  }
-
-  // Create quality indicator
-  const indicator = document.createElement('div');
-  indicator.className = 'f1-quality-indicator';
-  indicator.style.cssText = `
-    position: relative;
-    height: 20px;
-    background: linear-gradient(to right, #ff4757, #ffa502, #2ed573);
-    border-radius: 10px;
-    margin-top: 10px;
-  `;
-  
-  const marker = document.createElement('div');
-  marker.className = 'f1-quality-marker';
-  marker.style.cssText = `
-    position: absolute;
-    top: -5px;
-    width: 30px;
-    height: 30px;
-    background: white;
-    border: 3px solid #667eea;
-    border-radius: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: bold;
-    color: #667eea;
-    left: ${f1Score}%;
-  `;
-  
-  // Add quality text
-  let qualityText = 'Poor';
-  if (f1Score >= 80) qualityText = 'Great';
-  else if (f1Score >= 60) qualityText = 'Good';
-  else if (f1Score >= 40) qualityText = 'Fair';
-  
-  marker.textContent = qualityText;
-  indicator.appendChild(marker);
-  f1Item.appendChild(indicator);
+  return true;
 }
 
 function processTask(task) {
@@ -608,21 +524,13 @@ function processTask(task) {
       const range=document.createRange();
       range.setStart(startPos.node,startPos.local);
       range.setEnd(endPos.node,endPos.local);
-      const {className,details}=computeColorAndDetails(seg.covering);
+      const {className, details} = computeColorAndDetails(seg.covering, allUsers);
       const frag=range.extractContents();
       const span=document.createElement('span');
-      span.className='highlight '+className;
+      span.className='highlight '+(className||'');
       span.dataset.details=details;
       span.appendChild(frag);
-
-      const firstChild = frag.firstElementChild;
-      if (firstChild && ['P', 'DIV', 'LI'].includes(firstChild.tagName)) {
-        firstChild.classList.add(`highlight`, colorClass);
-        firstChild.dataset.details = details;
-        range.insertNode(frag);
-      } else {
-        range.insertNode(span);
-      }
+      range.insertNode(span);
     } catch(e){console.warn('wrap failed',seg,e);}
   });
 
@@ -640,7 +548,6 @@ function processTask(task) {
   }
   
   // Calculate and display statistics
-  // Stats for spans & agreements
   const grouped = {};
   annSpans.forEach(a => {
     const k = `${a.start}-${a.end}`;
@@ -653,16 +560,18 @@ function processTask(task) {
     return labels.length === 1 && users.length > 1;
   }).length;
 
-  // Update basic stats (no agreementRate anymore)
+  // Update basic stats
   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
 
-  // ✅ F1 now replaces agreementRate
+  // F1 Score
   const f1Metrics = calculateF1Metrics(annSpans, allUsers);
-  document.getElementById('f1Score').textContent = f1Metrics.f1Score + "%";
+  const f1ScoreEl = document.getElementById('f1Score');
+  if (f1ScoreEl) f1ScoreEl.textContent = f1Metrics.f1Score + "%";
 
-  // ✅ Jaccard score
+  // Jaccard score
   const jaccardMetrics = calculateJaccardMetrics(annSpans, allUsers);
-  document.getElementById('jaccardScore').textContent = jaccardMetrics.jaccard + "%";
+  const jaccardScoreEl = document.getElementById('jaccardScore');
+  if (jaccardScoreEl) jaccardScoreEl.textContent = jaccardMetrics.jaccard + "%";
 
   const statsEl = document.getElementById('stats');
   if (statsEl) {
@@ -700,13 +609,11 @@ function deleteCurrentPolicy() {
     return;
   }
   
-  const contributorCount = 'unknown'; // We'd need to load this from the current data
   const confirmMessage = `Are you sure you want to delete the policy "${policyName}"?\n\nThis will permanently delete all annotations and files.\n\nThis action cannot be undone.`;
   
   if (confirm(confirmMessage)) {
     showNotification('Deleting policy...', 'info');
     
-    // Make direct API call since we might not have access to main.js functions
     fetch(`${API_BASE}/policies/${encodeURIComponent(policyName)}`, {
       method: 'DELETE'
     })
@@ -738,15 +645,12 @@ async function viewProjectFiles(policyName) {
   try {
     showNotification('Loading project files...', 'info');
     
-    // Fetch policy data from server
     const response = await fetch(`${API_BASE}/policies/${encodeURIComponent(policyName)}`);
     if (!response.ok) {
       throw new Error('Failed to load policy data');
     }
     
     const policyData = await response.json();
-    
-    // Create and show files modal
     showFilesModal(policyName, policyData);
     
   } catch (error) {
@@ -756,13 +660,11 @@ async function viewProjectFiles(policyName) {
 }
 
 function showFilesModal(policyName, policyData) {
-  // Remove existing modal if any
   const existingModal = document.getElementById('filesModal');
   if (existingModal) {
     existingModal.remove();
   }
   
-  // Create modal
   const modal = document.createElement('div');
   modal.id = 'filesModal';
   modal.style.cssText = `
@@ -778,7 +680,6 @@ function showFilesModal(policyName, policyData) {
     justify-content: center;
   `;
   
-  // Build files list
   let filesHTML = '';
   let totalFiles = 0;
   
@@ -833,7 +734,6 @@ function showFilesModal(policyName, policyData) {
     filesHTML = '<p style="text-align: center; color: #666; font-style: italic; padding: 40px;">No files found for this policy.</p>';
   }
   
-  // Create modal content
   const modalContent = document.createElement('div');
   modalContent.style.cssText = `
     background: white;
@@ -868,7 +768,6 @@ function showFilesModal(policyName, policyData) {
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
   
-  // Close modal when clicking backdrop
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       closeFilesModal();
@@ -883,7 +782,6 @@ function closeFilesModal() {
   }
 }
 
-// Delete individual file within a policy
 async function deleteProjectFile(policyName, contributor, fileName, displayName) {
   const confirmMessage = `Are you sure you want to delete "${displayName}" uploaded by ${contributor}?\n\nThis action cannot be undone.`;
   
@@ -905,10 +803,8 @@ async function deleteProjectFile(policyName, contributor, fileName, displayName)
     
     showNotification('File deleted successfully', 'success');
     
-    // Refresh the files modal
     await viewProjectFiles(decodeURIComponent(policyName));
     
-    // If this is the current policy being viewed, reload the analysis
     if (decodeURIComponent(policyName) === getCurrentPolicyName()) {
       await loadPolicyFromServer(decodeURIComponent(policyName));
     }
@@ -919,7 +815,6 @@ async function deleteProjectFile(policyName, contributor, fileName, displayName)
   }
 }
 
-// Download individual file
 async function downloadProjectFile(policyName, contributor, fileName) {
   try {
     showNotification('Preparing download...', 'info');
@@ -933,7 +828,6 @@ async function downloadProjectFile(policyName, contributor, fileName) {
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     
-    // Get filename from response headers or use default
     const contentDisposition = response.headers.get('Content-Disposition');
     let filename = fileName;
     if (contentDisposition) {
@@ -943,7 +837,6 @@ async function downloadProjectFile(policyName, contributor, fileName) {
       }
     }
     
-    // Create download link
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -960,12 +853,10 @@ async function downloadProjectFile(policyName, contributor, fileName) {
   }
 }
 
-// Utility function to get current policy name
 function getCurrentPolicyName() {
   return policyName;
 }
 
-// Utility function to format file size
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -974,7 +865,6 @@ function formatFileSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Utility function to show notifications - COMPLETED
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.style.cssText = `
@@ -1002,7 +892,6 @@ function showNotification(message, type = 'info') {
   notification.textContent = message;
   document.body.appendChild(notification);
   
-  // Auto-remove after 4 seconds
   setTimeout(() => {
     if (document.body.contains(notification)) {
       notification.style.animation = 'slideOutRight 0.3s ease';
