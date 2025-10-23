@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Policy Analysis - GKCCI Dashboard</title>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/policyPage.css">
+</head>
+<body>
+  <div class="policy-container">
+    <div class="main-content">
+      <a href="index.html" class="back-button">← Back to Dashboard</a>
+      <h1 class="page-title" id="pageTitle">Policy Analysis</h1>
+
+      <div class="policy-scrollable">
+        <div id="serverDataInfo" style="display: none;" class="server-info">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <strong>📊 Server Data Loaded</strong><br>
+              <span id="dataSource"></span>
+            </div>
+            <button onclick="showManualUpload()">Upload New File</button>
+          </div>
+        </div>
+
+        <div id="fileUploadSection" class="upload-section">
+          <h3>📁 Upload Label Studio Export</h3>
+          <input type="file" id="fileInput" accept=".json" />
+          <div style="margin-top: 8px; font-size: 14px; color: #666;">
+            Select a Label Studio JSON export to analyze annotation agreements
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><span class="swatch green"></span><span>All annotators agree</span></div>
+          <div class="legend-item"><span class="swatch yellow"></span><span>Some annotated (partial)</span></div>
+          <div class="legend-item"><span class="swatch red"></span><span>Annotators disagree</span></div>
+        </div>
+
+        <!-- <section id="labelRelationSection" class="label-relation-section">
+          <h3>🔗 Label Relations Network</h3>
+          <div id="labelRelationContainer">
+            <div id="networkGraph"></div>
+          </div>
+        </section> -->
+
+        <div class="policy-content" id="policyContainer">
+          Select a file or load from server data to view annotations
+        </div>
+
+        <div class="stats-section">
+          <h3>📊 Analysis Statistics</h3>
+          <div id="stats">Load a JSON file or select from server data to see statistics</div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <span class="stat-value" id="distinctSpans">0</span>
+              <span class="stat-label">Distinct Spans</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="fullAgreements">0</span>
+              <span class="stat-label">Full Agreements</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="f1Score">0%</span>
+              <span class="stat-label">F1 Score</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="jaccardScore">0%</span>
+              <span class="stat-label">Jaccard Score</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-value" id="totalAnnotators">0</span>
+              <span class="stat-label">Total Annotators</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar">
+      <h3>Annotation Details</h3>
+      <div class="details-section">
+        <div id="details">
+          Hover over highlighted regions in the policy text to see detailed annotation information, 
+          including which annotators labeled each segment and their assigned GKCCI parameters.
+        </div>
+      </div>
+      
+      <div class="management-actions">
+        <h4>Project Management</h4>
+        <div class="action-buttons">
+          <button class="action-btn btn-primary" onclick="window.location.href='policyManagement.html?policy=' + encodeURIComponent(policyName || '')">
+            Manage Contributors
+          </button>
+          <button class="action-btn btn-success" onclick="exportPolicyData()">
+            Export Data
+          </button>
+          <button class="action-btn btn-danger" onclick="deleteCurrentPolicy()">
+            Delete Policy
+          </button>
+        </div>
+         <a id="relationLink" class="relation-link" target="_blank">
+           Open Label Relations Network
+        </a>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
+          <button class="action-btn btn-primary" onclick="viewProjectFiles(policyName)" style="width: 100%;">
+            📁 View All Files
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/policyPage_test.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="js/label-relation.js"></script>
+  </body>
+</html>
