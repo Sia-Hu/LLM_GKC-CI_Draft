@@ -179,13 +179,12 @@ function handleManualUpload(event) {
   reader.readAsText(f);
 }
 
-function parseHTMLBody(htmlString) {
-  try {
-    const doc = new DOMParser().parseFromString(htmlString, 'text/html');
-    return doc.body ? doc.body.innerHTML : htmlString;
-  } catch (e) {
-    return htmlString;
-  }
+function parseHTMLBody(rawHTML) {
+  if (!rawHTML) return '<p>No content available</p>';
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawHTML, 'text/html');
+  const body = doc.querySelector('body');
+  return body ? body.innerHTML : rawHTML;
 }
 
 function normalizeText(str) {
@@ -457,7 +456,7 @@ function processTask(task) {
     console.error('Policy container not found');
     return;
   }
-  
+
   container.innerHTML = '';
 
   const rawHTML = (task.data && task.data.text) ? task.data.text : (task.file_upload || '');
@@ -466,7 +465,7 @@ function processTask(task) {
 
   const annSpans = [];
   const allUsers = new Set();
-  
+
   (task.annotations || []).forEach(annObj => {
     const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
     allUsers.add(userEmail);
@@ -476,7 +475,9 @@ function processTask(task) {
           start: Number(r.value.globalOffsets.start),
           end: Number(r.value.globalOffsets.end),
           user: userEmail,
-          label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
+          label: Array.isArray(r.value.labels)
+            ? r.value.labels[0]
+            : (r.value.labels || null),
           text: r.value.text || ''
         });
       }
@@ -485,9 +486,7 @@ function processTask(task) {
 
   if (annSpans.length === 0) {
     const statsEl = document.getElementById('stats');
-    if (statsEl) {
-      statsEl.innerText = 'No annotation spans found.';
-    }
+    if (statsEl) statsEl.innerText = 'No annotation spans found.';
     updateStatsDisplay(0, 0, 0);
     return;
   }
@@ -499,20 +498,22 @@ function processTask(task) {
     if (s.start >= 0 && s.start <= totalLen) breakSet.add(s.start);
     if (s.end >= 0 && s.end <= totalLen) breakSet.add(s.end);
   });
-  const breaks = [...breakSet].sort((a,b)=>a-b);
+  const breaks = [...breakSet].sort((a, b) => a - b);
 
   const segments = [];
-  for (let i=0;i<breaks.length-1;i++){
-    const s=breaks[i], e=breaks[i+1];
-    if (s===e) continue;
-    const covering = annSpans.filter(a=>a.start<=s && a.end>=e);
-    segments.push({start:s,end:e,covering});
+  for (let i = 0; i < breaks.length - 1; i++) {
+    const s = breaks[i], e = breaks[i + 1];
+    if (s === e) continue;
+    const covering = annSpans.filter(a => a.start <= s && a.end >= e);
+    segments.push({ start: s, end: e, covering });
   }
 
-  const segmentsToWrap = segments.filter(seg=>seg.covering.length>0)
-                                 .sort((a,b)=>b.start-a.start);
+  const segmentsToWrap = segments
+    .filter(seg => seg.covering.length > 0)
+    .sort((a, b) => b.start - a.start);
 
-  segmentsToWrap.forEach(seg=>{
+  // ✅ Insert spans with only color class (no highlight background)
+  segmentsToWrap.forEach(seg => {
     nodesIndex = buildTextNodeIndex(container);
     const curTotal = nodesIndex.totalLength;
     const segStart = Math.min(seg.start, curTotal);
@@ -520,34 +521,48 @@ function processTask(task) {
     const startPos = findNodeForOffset(nodesIndex, segStart);
     const endPos = findNodeForOffset(nodesIndex, segEnd);
     if (!startPos || !endPos) return;
+
+    const rangeText = container.textContent.slice(segStart, segEnd);
+    if (!/[A-Za-z0-9À-ÿ%$@#&]+/.test(rangeText)) return; 
     try {
-      const range=document.createRange();
-      range.setStart(startPos.node,startPos.local);
-      range.setEnd(endPos.node,endPos.local);
-      const {className, details} = computeColorAndDetails(seg.covering, allUsers);
-      const frag=range.extractContents();
-      const span=document.createElement('span');
-      span.className='highlight '+(className||'');
-      span.dataset.details=details;
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.local);
+      range.setEnd(endPos.node, endPos.local);
+
+      const { className, details } = computeColorAndDetails(seg.covering, allUsers);
+      const frag = range.extractContents();
+
+      const span = document.createElement('span');
+      span.classList.add('annotation-text');
+      if (className) span.classList.add(className);
+      span.dataset.details = details;
       span.appendChild(frag);
+      const commonAncestor = range.commonAncestorContainer;
+// if (commonAncestor.nodeType !== Node.TEXT_NODE &&
+//     !['SPAN', 'A', 'B', 'I', 'U', 'EM', 'STRONG'].includes(commonAncestor.nodeName)) {
+//   return; // skip block-level containers
+// }
       range.insertNode(span);
-    } catch(e){console.warn('wrap failed',seg,e);}
+    } catch (e) {
+      console.warn('wrap failed', seg, e);
+    }
   });
 
-  // Add event listeners for hover details
+  // ✅ Keep the same hover behavior (details sidebar)
   const detailsEl = document.getElementById('details');
   if (detailsEl) {
-    container.querySelectorAll('.highlight').forEach(el=>{
-      el.addEventListener('mouseenter',()=>{
+    container.querySelectorAll('.annotation-text').forEach(el => {
+      el.addEventListener('mouseenter', () => {
         detailsEl.innerHTML = el.dataset.details || 'No labels';
       });
-      el.addEventListener('mouseleave',()=>{
-        detailsEl.innerHTML = 'Hover over highlighted text to see annotation details';
+      el.addEventListener('mouseleave', () => {
+        detailsEl.innerHTML =
+          'Hover over colored text to see annotation details';
       });
     });
   }
-  
-  // Calculate and display statistics
+
+  // ✅ Stats computation (unchanged)
   const grouped = {};
   annSpans.forEach(a => {
     const k = `${a.start}-${a.end}`;
@@ -560,24 +575,20 @@ function processTask(task) {
     return labels.length === 1 && users.length > 1;
   }).length;
 
-  // Update basic stats
   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
 
-  // F1 Score
   const f1Metrics = calculateF1Metrics(annSpans, allUsers);
   const f1ScoreEl = document.getElementById('f1Score');
   if (f1ScoreEl) f1ScoreEl.textContent = f1Metrics.f1Score + "%";
 
-  // Jaccard score
   const jaccardMetrics = calculateJaccardMetrics(annSpans, allUsers);
   const jaccardScoreEl = document.getElementById('jaccardScore');
   if (jaccardScoreEl) jaccardScoreEl.textContent = jaccardMetrics.jaccard + "%";
 
   const statsEl = document.getElementById('stats');
-  if (statsEl) {
-    statsEl.innerHTML = 'Analysis complete. Stats updated below.';
-  }
+  if (statsEl) statsEl.innerHTML = 'Analysis complete. Stats updated below.';
 }
+
 
 // Management Functions
 function exportPolicyData() {
@@ -938,7 +949,6 @@ style.textContent = `
     color: #e53e3e;
     font-weight: 600;
   }
-  
   .highlight {
     cursor: pointer;
     padding: 2px 4px;

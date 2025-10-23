@@ -40,16 +40,16 @@ body {
 }
 
 
-/* This is the only scrollable region inside main-content */
 .policy-scrollable {
-  flex: 1;
-  min-height: 0;           /* âœ… critical for Firefox & Chrome flex scroll */
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* padding-right: 12px; */
-  margin-right: -8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(102, 126, 234, 0.4) transparent;
+  overflow: auto;              /* ✅ identical to Label Studio */
+  padding: 6px 0;              /* ✅ match spacing */
+  flex: 1;                     /* grow to fill remaining space in column */
+  height: 80vh;                /* same height they use for main view */
+  scroll-behavior: smooth;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  line-height: 1.6;
 }
 
 .policy-scrollable::-webkit-scrollbar {
@@ -232,29 +232,51 @@ body {
   font-size: 0.85em;
 }
 .policy-content {
-  background: white;
-  padding: 25px;
-  border-radius: 15px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-  line-height: 1.6;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   color: #222;
-  white-space: normal; /* ✅ Don't preserve broken line spacing */
+  padding: 10px 20px;
+  white-space: normal;         /* ✅ prevents broken spacing */
   overflow-wrap: break-word;
   word-break: normal;
 }
 
+
+.policy-content p,
 .policy-content ul,
 .policy-content ol {
-  margin-left: 1.6em;
+  margin: 0 0 0.8em 0;
+}
+
+
+.policy-content ul,
+.policy-content ol {
+  margin-left: 1.5em;
   padding-left: 1.2em;
   list-style-position: outside;
 }
 
-.policy-content li {
-  margin-bottom: 0.3em;
+/* === Highlight colors (Label Studio–style) === */
+.highlight {
+  display: inline;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0;
+  background-clip: padding-box;
+  word-break: normal;
+  line-height: inherit;
+  vertical-align: baseline;
+  white-space: normal; /* ✅ do NOT preserve stray line breaks */
 }
+
+.highlight.green { background: rgba(72, 187, 120, 0.35); }
+.highlight.yellow { background: rgba(255, 223, 99, 0.45); }
+.highlight.red { background: rgba(255, 153, 153, 0.4); }
+
+.highlight:hover {
+  background: rgba(147, 197, 253, 0.4);
+}
+
 
 .policy-content strong,
 .policy-content b {
