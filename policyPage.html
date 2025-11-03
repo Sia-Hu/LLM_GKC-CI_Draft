@@ -3,10 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <title>Policy Analysis - GKCCI Dashboard</title>
-  
+
   <!-- Stylesheets -->
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/policyPage.css">
+  <style>
+    /* Minimal styles for the relations modal */
+    #relationModal {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 3000;
+      align-items: center; justify-content: center;
+    }
+    #relationModal .inner {
+      width: min(1100px, 92vw);
+      height: min(780px, 88vh);
+      background: #fff; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+      display: flex; flex-direction: column;
+    }
+    #relationModal header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding: 14px 18px; border-bottom: 1px solid #e5e7eb;
+    }
+    #relationModal .canvas {
+      flex: 1; overflow: hidden; padding: 10px;
+    }
+    #relationModal .close {
+      background: none; border: none; font-size: 22px; cursor: pointer;
+    }
+  </style>
 </head>
 <body>
   <div class="policy-container">
@@ -15,8 +42,8 @@
       <h1 class="page-title" id="pageTitle">Policy Analysis</h1>
 
       <div class="policy-scrollable">
-        <div id="serverDataInfo" style="display: none;" class="server-info">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div id="serverDataInfo" style="display:none;" class="server-info">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
               <strong>📊 Server Data Loaded</strong><br>
               <span id="dataSource"></span>
@@ -28,7 +55,7 @@
         <div id="fileUploadSection" class="upload-section">
           <h3>📁 Upload Label Studio Export</h3>
           <input type="file" id="fileInput" accept=".json" />
-          <div style="margin-top: 8px; font-size: 14px; color: #666;">
+          <div style="margin-top:8px;font-size:14px;color:#666;">
             Select a Label Studio JSON export to analyze annotation agreements
           </div>
         </div>
@@ -39,16 +66,15 @@
           <div class="legend-item"><span class="swatch red"></span><span>Annotators disagree</span></div>
         </div>
 
-        <!-- <section id="labelRelationSection" class="label-relation-section">
-          <h3>🔗 Label Relations Network</h3>
-          <div id="labelRelationContainer">
-            <div id="networkGraph"></div>
-          </div>
-        </section> -->
-
-        <div class="policy-content" id="policyContainer">
-          Select a file or load from server data to view annotations
+        <div class="extended-analysis" id="analysisResults" style="margin-top: 30px; display: none;">
+          <h3>🧮 Detailed Agreement Metrics</h3>
+          <div id="pairwiseF1" style="margin-bottom: 20px;"></div>
+          <div id="labelF1" class="metric-block"></div>
+          <div id="mismatchDist"></div>
         </div>
+
+        <!-- Policy Content -->
+        <div id="policyContainer">Select a file or load from server data to view annotations</div>
 
         <div class="stats-section">
           <h3>📊 Analysis Statistics</h3>
@@ -79,42 +105,64 @@
       </div>
     </div>
 
+    <!-- Sidebar -->
     <div class="sidebar">
       <h3>Annotation Details</h3>
       <div class="details-section">
         <div id="details">
-          Hover over highlighted regions in the policy text to see detailed annotation information, 
-          including which annotators labeled each segment and their assigned GKCCI parameters.
+          Hover over colored text to see detailed annotation information,
+          including annotators and GKCCI parameters.
         </div>
       </div>
-      
+
+      <div id="relationDetails" class="details-section" style="margin-top:15px;">
+        <h4>Relation Labels</h4>
+        <div id="relationInfo">No relation selected</div>
+      </div>
+
+      <div id="labelReports" class="stats-section" style="margin-top:20px;">
+        <h3>🧾 Label-Level Summary</h3>
+        <p>Computed per annotation type</p>
+      </div>
+
       <div class="management-actions">
         <h4>Project Management</h4>
         <div class="action-buttons">
           <button class="action-btn btn-primary" onclick="window.location.href='policyManagement.html?policy=' + encodeURIComponent(policyName || '')">
             Manage Contributors
           </button>
-          <button class="action-btn btn-success" onclick="exportPolicyData()">
-            Export Data
-          </button>
-          <button class="action-btn btn-danger" onclick="deleteCurrentPolicy()">
-            Delete Policy
-          </button>
+          <button class="action-btn btn-success" onclick="exportPolicyData()">Export Data</button>
+          <button class="action-btn btn-danger" onclick="deleteCurrentPolicy()">Delete Policy</button>
         </div>
-         <a id="relationLink" class="relation-link" target="_blank">
-           Open Label Relations Network
-        </a>
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">
-          <button class="action-btn btn-primary" onclick="viewProjectFiles(policyName)" style="width: 100%;">
-            📁 View All Files
-          </button>
+
+        <!-- Opens in-page modal (uses last loaded task) -->
+        <button id="relationLink" class="relation-link" style="margin-top:10px;width:100%;">
+          Open Label Relations Network
+        </button>
+
+        <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
+          <button class="action-btn btn-primary" onclick="viewProjectFiles(policyName)" style="width:100%;">📁 View All Files</button>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="js/policyPage.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="js/label-relation.js"></script>
-  </body>
+  <!-- Relations Modal -->
+  <div id="relationModal" role="dialog" aria-modal="true" aria-labelledby="relationModalTitle">
+    <div class="inner">
+      <header>
+        <h3 id="relationModalTitle" style="margin:0;">Label Relations Network</h3>
+        <button class="close" onclick="closeRelationModal()" aria-label="Close">&times;</button>
+      </header>
+      <div class="canvas">
+        <div id="networkGraph" style="width:100%;height:100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts: d3 first, then relations, then page -->
+  <script defer src="https://d3js.org/d3.v7.min.js"></script>
+  <script defer src="./js/label-relation.js?v=20251102-2"></script>
+  <script defer src="./js/policyPage.js?v=20251102-2"></script>
+</body>
 </html>

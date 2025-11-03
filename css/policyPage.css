@@ -28,6 +28,17 @@ body {
   box-sizing: border-box;
 }
 
+#policyContainer {
+  all: revert;
+  background-color: transparent;
+  overflow: auto;
+  padding: 10px 0;
+}
+
+#policyContainer span.annotation-text {
+  transition: color 0.2s ease;
+} 
+
 .main-content {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
@@ -231,17 +242,17 @@ body {
   color: #555;
   font-size: 0.85em;
 }
-.policy-content {
+/* .policy-content {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   color: #222;
   padding: 10px 20px;
-  white-space: normal;         /* ✅ prevents broken spacing */
+  white-space: normal;       
   overflow-wrap: break-word;
   word-break: normal;
-}
+} 
 
-
+ 
 .policy-content p,
 .policy-content ul,
 .policy-content ol {
@@ -254,13 +265,13 @@ body {
   margin-left: 1.5em;
   padding-left: 1.2em;
   list-style-position: outside;
-}
+} */
 
 /* === Highlight colors (Label Studio–style) === */
 .highlight {
   display: inline;
   border-radius: 2px;
-  padding: 0 2px;
+  /* padding: 0 2px; */
   margin: 0;
   background-clip: padding-box;
   word-break: normal;
@@ -277,6 +288,22 @@ body {
   background: rgba(147, 197, 253, 0.4);
 }
 
+
+.extended-analysis {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 15px 20px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.extended-analysis h3 {
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.extended-analysis div b {
+  color: #222;
+}
 
 .policy-content strong,
 .policy-content b {

@@ -15,10 +15,7 @@ const POLICIES_FILE = path.join(DATA_DIR, 'policies.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
 // Middleware
-app.use(cors({
-    origin: ['http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:3000'],
-    credentials: true
-}));
+app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('.'));
@@ -375,7 +372,7 @@ app.get('/api/policies/:policyName/files', async (req, res) => {
         
         // Check old flat structure since you don't have projects folder yet
         const oldUploadsDir = path.join(DATA_DIR, 'uploads');
-        
+
         let files = [];
         let directory = oldUploadsDir;
         
