@@ -108,47 +108,36 @@
     <!-- Sidebar -->
 
     <div class="sidebar">
-      <div id="labelFilterContainer" style="margin:10px 0;">
-          <button class="label-filter-btn" data-label="all">All Labels</button>
-      </div>
-      <h3>Annotation Details</h3>
-      <div class="details-section">
-        <div id="details">
-          Hover over colored text to see detailed annotation information,
-          including annotators and GKCCI parameters.
-        </div>
-      </div>
+  <div id="labelFilterContainer" style="margin:10px 0;">
+    <button class="label-filter-btn" data-label="all">All Labels</button>
+  </div>
 
-      <div id="relationDetails" class="details-section" style="margin-top:15px;">
-        <h4>Relation Labels</h4>
-        <div id="relationInfo">No relation selected</div>
-      </div>
-
-      <div id="labelReports" class="stats-section" style="margin-top:20px;">
-        <h3>🧾 Label-Level Summary</h3>
-        <p>Computed per annotation type</p>
-      </div>
-
-      <div class="management-actions">
-        <h4>Project Management</h4>
-        <div class="action-buttons">
-          <button class="action-btn btn-primary" onclick="window.location.href='policyManagement.html?policy=' + encodeURIComponent(policyName || '')">
-            Manage Contributors
-          </button>
-          <button class="action-btn btn-success" onclick="exportPolicyData()">Export Data</button>
-          <button class="action-btn btn-danger" onclick="deleteCurrentPolicy()">Delete Policy</button>
-        </div>
-
-        <!-- Opens in-page modal (uses last loaded task) -->
-        <button id="relationLink" class="relation-link" style="margin-top:10px;width:100%;">
-          Open Label Relations Network
-        </button>
-
-        <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e2e8f0;">
-          <button class="action-btn btn-primary" onclick="viewProjectFiles(policyName)" style="width:100%;">📁 View All Files</button>
-        </div>
-      </div>
+  <h3>Annotation Details</h3>
+  <div class="details-section">
+    <div id="details">
+      Hover over colored text to see detailed annotation information,
+      including annotators and GKCCI parameters.
     </div>
+  </div>
+
+  <div id="relationDetails" class="details-section" style="margin-top:15px;">
+    <h4>Relation Labels</h4>
+    <div id="relationInfo">No relation selected</div>
+  </div>
+
+  <!-- ✅ Add this -->
+  <div id="relationButtonContainer" style="margin-top:20px;">
+    <button id="viewRelationsBtn" class="action-btn btn-primary" style="width:100%;">
+      🔗 View Relations
+    </button>
+  </div>
+
+  <div id="labelReports" class="stats-section" style="margin-top:20px;">
+    <h3>🧾 Label-Level Summary</h3>
+    <p>Computed per annotation type</p>
+  </div>
+</div>
+
   </div>
 
   <!-- Relations Modal -->

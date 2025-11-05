@@ -985,3 +985,35 @@ canvas {
         justify-content: center;
     }
 }
+
+/* === RELATIONS PAGE SCOPED OVERRIDES === */
+body#relationsPage {
+  background: #fafafa !important;
+  padding: 40px;
+  font-family: 'Inter', sans-serif;
+  color: #222;
+  min-height: 100vh;
+}
+
+#relationsPage h1 {
+  color: #4c1d95;
+  font-size: 1.8em;
+  margin-bottom: 20px;
+}
+
+#relationsPage button#backToPolicy {
+  background: #6b46c1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 15px;
+  cursor: pointer;
+  margin-bottom: 25px;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#relationsPage button#backToPolicy:hover {
+  background: #553c9a;
+  transform: translateY(-2px);
+}

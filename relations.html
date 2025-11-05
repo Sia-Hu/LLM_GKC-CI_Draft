@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Relation Tuples Table</title>
+  <link rel="stylesheet" href="css/styles.css">
+   <style>
+    /* 🟣 Make relation table header sticky */
+    #relationTableContainer {
+    max-height: 85vh;
+    overflow-y: auto;
+    margin-top: 10px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Make header sticky */
+    .relation-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #f3f0ff;
+    color: #4c1d95;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+  </style>
+</head>
+<body id="relationsPage">
+  <button id="backToPolicy">⬅️ Back to Policy</button>
+  <h1>Relation Tuples Table</h1>
+
+  <div id="relationTableContainer">
+    <p>Loading relations...</p>
+  </div>
+
+  <script src="js/relations.js"></script>
+</body>
+</html>
