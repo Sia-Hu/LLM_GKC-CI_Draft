@@ -180,7 +180,11 @@ function buildNormalizedMap(container) {
   while (walker.nextNode()) {
     const node = walker.currentNode;
     if (isHidden(node)) continue;
-    const text = node.nodeValue.replace(/\r/g, '').replace(/\n/g, ' ');
+    // const text = node.nodeValue.replace(/\r/g, '').replace(/\n/g, ' ');
+    const text = node.nodeValue
+  .replace(/&nbsp;/g, ' ')
+  .replace(/\r?\n|\r/g, ' ')
+  .replace(/\s+/g, ' ');
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
       if (isSpace(ch)) {
@@ -342,30 +346,926 @@ function calculateJaccardMetrics(annSpans, allUsers) {
 }
 
 // ---------- main render ----------
+// function processTask(task) {
+//   const container = document.getElementById('policyContainer');
+//   if (!container) { console.error('Policy container not found'); return; }
+//   container.innerHTML = '';
+
+//   // const rawHTML = task?.data?.text || task?.file_upload || '';
+//   // container.innerHTML = rawHTML;
+// // --- 🧩 LS-compatible normalization and offset alignment ---
+
+// function normalizeForLabelStudio(html) {
+//   // 1️⃣ Parse HTML safely
+//   const doc = new DOMParser().parseFromString(html, 'text/html');
+
+//   // 2️⃣ Flatten it like BeautifulSoup's get_text(" ", strip=False)
+//   const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+//   let normalized = '';
+//   let lastWasSpace = false;
+
+//   while (walker.nextNode()) {
+//     const node = walker.currentNode;
+//     const text = node.nodeValue.replace(/\s+/g, ' ');
+//     if (text.trim().length === 0) continue;
+//     if (!lastWasSpace && !normalized.endsWith(' ')) normalized += ' ';
+//     normalized += text.trim();
+//     lastWasSpace = /\s$/.test(text);
+//   }
+
+//   return normalized.trim();
+// }
+
+// // 3️⃣ Render the original HTML (for visual structure)
+// const rawHTML = task?.data?.text || task?.file_upload || '';
+// const parser = new DOMParser();
+// const doc = parser.parseFromString(rawHTML, 'text/html');
+// const bodyHTML = doc.body ? doc.body.innerHTML : rawHTML;
+// container.innerHTML = bodyHTML;
+
+// function getLSNormalizedTextAndMap(html, container) {
+//   // Rebuild flattened text LS uses
+//   const doc = new DOMParser().parseFromString(html, 'text/html');
+//   const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+//   let lsText = '';
+//   const lsIndexMap = []; // maps LS index → browser index
+//   let domText = (container.textContent || '').replace(/\s+/g, ' ');
+//   let browserIndex = 0;
+
+//   while (walker.nextNode()) {
+//     const raw = walker.currentNode.nodeValue || '';
+//     const norm = raw.replace(/\s+/g, ' ');
+//     for (let i = 0; i < norm.length; i++) {
+//       const ch = norm[i];
+//       if (!ch) continue;
+//       lsText += ch;
+//       lsIndexMap.push(browserIndex);
+//       browserIndex++;
+//     }
+//     lsText += ' ';
+//     lsIndexMap.push(browserIndex);
+//     browserIndex++;
+//   }
+
+//   return { lsText: lsText.trim(), lsIndexMap };
+// }
+
+// // --- 🧭 Step 2. Build mapping between LS offsets and DOM text ---
+// const { lsText, lsIndexMap } = getLSNormalizedTextAndMap(rawHTML, container);
+
+// function lsToDomOffset(lsOffset) {
+//   // If offset exceeds map, clamp
+//   const clamped = Math.min(lsOffset, lsIndexMap.length - 1);
+//   return lsIndexMap[clamped] || 0;
+// }
+
+
+//   // const annSpans = [];
+//   // const allUsers = new Set();
+  
+//   // (task.annotations || []).forEach(annObj => {
+//   //   const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+//   //   allUsers.add(userEmail);
+//   //   (annObj.result || []).forEach(r => {
+//   //     if (r.value?.globalOffsets) {
+//   //       annSpans.push({
+//   //         start: Number(r.value.globalOffsets.start) + offsetShift,
+//   //         end: Number(r.value.globalOffsets.end) + offsetShift,
+//   //         user: userEmail,
+//   //         label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
+//   //         text: r.value.text || ''
+//   //       });
+//   //     }
+//   //   });
+//   // });
+
+//   const annSpans = [];
+//   const allUsers = new Set();
+
+//   (task.annotations || []).forEach(annObj => {
+//     const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+//     allUsers.add(userEmail);
+//     (annObj.result || []).forEach(r => {
+//       if (r.value?.globalOffsets) {
+//         const start = lsToDomOffset(Number(r.value.globalOffsets.start));
+//         const end = lsToDomOffset(Number(r.value.globalOffsets.end));
+//         annSpans.push({
+//           start,
+//           end,
+//           user: userEmail,
+//           label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
+//           text: r.value.text || ''
+//         });
+//       }
+//     });
+//   });
+
+//   const statsEl = document.getElementById('stats');
+//   if (!annSpans.length) {
+//     if (statsEl) statsEl.innerText = 'No annotation spans found.';
+//     updateStatsDisplay(0, 0, 0);
+//     return;
+//   }
+
+//   // Build segments
+//   const totalLen = annSpans.reduce((m, s) => Math.max(m, s.end), 0);
+//   const breakSet = new Set([0, totalLen]);
+//   annSpans.forEach(s => { breakSet.add(s.start); breakSet.add(s.end); });
+//   const breaks = [...breakSet].sort((a, b) => a - b);
+
+//   const segments = [];
+//   for (let i = 0; i < breaks.length - 1; i++) {
+//     const s = breaks[i], e = breaks[i + 1];
+//     if (s === e) continue;
+//     const covering = annSpans.filter(a => a.start <= s && a.end >= e);
+//     if (covering.length > 0) {
+//       const { className, details } = computeColorAndDetails(covering, allUsers);
+//       segments.push({ start: s, end: e, covering, className, details });
+//     }
+//   }
+
+//   // index map
+//   const normToDom = buildNormalizedMap(container);
+//   window.__lastTaskSegments = { segments, normToDom };
+
+//   // CSS Custom Highlight API
+//   const supportsHighlights = typeof CSS !== 'undefined' && CSS.highlights && typeof CSS.highlights.set === 'function';
+//   if (!document.getElementById('textColorHighlightStyles')) {
+//     const style = document.createElement('style');
+//     style.id = 'textColorHighlightStyles';
+//     style.textContent = `
+//       ::highlight(agree)    { color: #16a34a; background: transparent; }
+//       ::highlight(partial)  { color: #ca8a04; background: transparent; }
+//       ::highlight(conflict) { color: #dc2626; background: transparent; }
+//       ::highlight(hoverSeg) { text-decoration: underline; }
+//     `;
+//     document.head.appendChild(style);
+//   }
+
+//   if (supportsHighlights) {
+//     try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+//     const agree = [], partial = [], conflict = [];  window.__lastTaskSegments = { segments, normToDom };
+//     window.__lastTaskSegments = { segments, normToDom };
+//     segments.forEach(seg => {
+//       const range = toRangeFromNorm(normToDom, seg.start, seg.end);
+//       if (!range) return;
+//       if (seg.className === 'green') agree.push(range);
+//       else if (seg.className === 'yellow') partial.push(range);
+//       else if (seg.className === 'red') conflict.push(range);
+//     });
+//     if (agree.length)   CSS.highlights.set('agree',   new Highlight(...agree));
+//     if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+//     if (conflict.length)CSS.highlights.set('conflict',new Highlight(...conflict));
+//   } else {
+//     console.warn('CSS Custom Highlight API not supported; color display disabled.');
+//   }
+
+//   // Hover/lock
+//   const detailsEl = document.getElementById('details');
+//   const relationInfo = document.getElementById('relationInfo');
+//   let locked = false, lastKey = null, lockedSeg = null;
+
+//   function showSegmentDetails(seg) {
+//     if (!detailsEl) return;
+//     if (!seg) { detailsEl.innerHTML = ''; if (relationInfo) relationInfo.innerHTML = ''; return; }
+
+//     let html = seg.details || 'No labels';
+
+//     // Relation tuples for this segment (best-effort)
+//     try {
+//       const wordText = (container.textContent || '').substring(seg.start, seg.end).trim();
+//       const relationTuples = [];
+
+//       ( __lastTask?.annotations || [] ).forEach(annObj => {
+//         const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+//         const nodes = []; const links = [];
+//         (annObj.result || []).forEach(r => {
+//           if (r.type === 'labels' && r.value?.labels) {
+//             nodes.push({
+//               id: r.id,
+//               text: r.value.text || '',
+//               label: Array.isArray(r.value.labels) ? r.value.labels[0] : r.value.labels
+//             });
+//           } else if (r.type === 'relation' && r.from_id && r.to_id) {
+//             links.push({ source: r.from_id, target: r.to_id });
+//           }
+//         });
+//         links.forEach(l => {
+//           const src = nodes.find(n => n.id === l.source);
+//           const tgt = nodes.find(n => n.id === l.target);
+//           if (src && tgt && (src.text.includes(wordText) || tgt.text.includes(wordText))) {
+//             relationTuples.push(`${userEmail}: (<b>${src.label || 'Label'} → ${tgt.label || 'Label'}</b>) – “${src.text}” → “${tgt.text}”`);
+//           }
+//         });
+//       });
+
+//       if (relationTuples.length > 0) {
+//         const relationHTML = relationTuples.map(t => `<div style="margin-bottom:4px;">${t}</div>`).join('');
+//         html += `<hr><b>Relations:</b><br>${relationHTML}`;
+//         if (relationInfo) relationInfo.innerHTML = relationHTML;
+//       } else if (relationInfo) {
+//         relationInfo.innerHTML = '';
+//       }
+//     } catch (e) {
+//       console.warn('Relation tuple extraction failed:', e);
+//     }
+
+//     detailsEl.innerHTML = html;
+//   }
+
+//   function caretToNormIndex(x, y) {
+//     let rng = null;
+//     if (document.caretRangeFromPoint) rng = document.caretRangeFromPoint(x, y);
+//     else if (document.caretPositionFromPoint) {
+//       const pos = document.caretPositionFromPoint(x, y);
+//       if (pos) { rng = document.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); }
+//     }
+//     if (!rng || !rng.startContainer) return null;
+//     const node = rng.startContainer;
+//     const offset = rng.startOffset;
+//     for (let i = 0; i < normToDom.length; i++) {
+//       const map = normToDom[i];
+//       if (map.node === node && map.offset >= offset) return i;
+//     }
+//     return null;
+//   }
+
+//   function segAtNormIndex(i) {
+//     return segments.find(s => i >= s.start && i < s.end) || null;
+//   }
+
+//   function setHover(seg) {
+//     if (!supportsHighlights) return;
+//     try { CSS.highlights.delete('hoverSeg'); } catch {}
+//     if (seg) {
+//       const r = toRangeFromNorm(normToDom, seg.start, seg.end);
+//       if (r) CSS.highlights.set('hoverSeg', new Highlight(r));
+//     }
+//   }
+
+//   container.style.cursor = 'text';
+
+//   container.addEventListener('mousemove', e => {
+//     if (locked) return;
+//     const idx = caretToNormIndex(e.clientX, e.clientY);
+//     const seg = segAtNormIndex(idx);
+//     const key = seg ? `${seg.start}-${seg.end}` : null;
+//     if (key === lastKey) return;
+//     lastKey = key;
+//     setHover(seg);
+//     showSegmentDetails(seg);
+//   });
+
+//   container.addEventListener('mouseleave', () => {
+//     if (locked) return;
+//     lastKey = null;
+//     setHover(null);
+//     showSegmentDetails(null);
+//   });
+
+//   container.addEventListener('click', e => {
+//     const idx = caretToNormIndex(e.clientX, e.clientY);
+//     const seg = segAtNormIndex(idx);
+//     if (locked && seg === lockedSeg) {
+//       locked = false; lockedSeg = null;
+//       if (detailsEl) detailsEl.classList.remove('locked');
+//       setHover(null); showSegmentDetails(null);
+//     } else {
+//       locked = true; lockedSeg = seg;
+//       if (detailsEl) detailsEl.classList.add('locked');
+//       setHover(seg); showSegmentDetails(seg);
+//     }
+//   });
+
+//   // Metrics & panels
+//   const grouped = {};
+//   annSpans.forEach(a => { (grouped[`${a.start}-${a.end}`] ||= []).push(a); });
+//   const fullAgree = Object.values(grouped).filter(list => {
+//     const labels = [...new Set(list.map(x => x.label))];
+//     const users = [...new Set(list.map(x => x.user))];
+//     return labels.length === 1 && users.length > 1;
+//   }).length;
+
+//   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
+
+//   const f1Metrics = calculateF1Metrics(annSpans, allUsers);
+//   const jaccardMetrics = calculateJaccardMetrics(annSpans, allUsers);
+//   const f1ByLabel = calculateF1ByLabel(annSpans, allUsers);
+
+//   const f1El = document.getElementById('f1Score');
+//   const jaccardEl = document.getElementById('jaccardScore');
+//   if (f1El) f1El.textContent = f1Metrics.f1Score + '%';
+//   if (jaccardEl) jaccardEl.textContent = jaccardMetrics.jaccard + '%';
+
+//   // Pairwise F1 by annotator
+//   const annotatorList = Array.from(allUsers);
+//   const pairwiseF1 = [];
+//   for (let i = 0; i < annotatorList.length; i++) {
+//     for (let j = i + 1; j < annotatorList.length; j++) {
+//       const userA = annotatorList[i];
+//       const userB = annotatorList[j];
+//       const spansA = annSpans.filter(s => s.user === userA);
+//       const spansB = annSpans.filter(s => s.user === userB);
+//       const { precision, recall } = calculatePairwiseMetrics(spansA, spansB);
+//       const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+//       pairwiseF1.push({ pair: `${userA} ↔ ${userB}`, f1: Math.round(f1 * 100) });
+//     }
+//   }
+
+//   const labelReportContainer = document.getElementById('labelReports');
+//   if (labelReportContainer) {
+//     const reports = generateLabelReports(annSpans, allUsers, __lastTask || task);
+//     labelReportContainer.innerHTML = `
+//       <h3>🧾 Label-Level Summary</h3>
+//       ${Object.values(reports).map(r => `
+//         <div class="label-report" style="border-bottom:1px solid #ccc; margin-bottom:15px; padding-bottom:10px;">
+//           <h4 style="margin-bottom:5px;">${r.label}</h4>
+//           <ul style="margin:0; padding-left:18px; line-height:1.5;">
+//             <li><b>Annotation Count:</b> ${r.count}</li>
+//             <li><b>Annotator Coverage:</b> ${r.coverage}%</li>
+//             <li><b>Average F1 (Agreement):</b> ${r.f1}%</li>
+//             <li><b>Distinct Segments:</b> ${r.distinctSpans}</li>
+//             <li><b>Span Overlap Rate:</b> ${r.overlapRate}%</li>
+//             <li><b>Common Disagreements:</b> ${
+//               r.commonDisagreements.map(d => `${d.label} (${d.count})`).join(', ') || 'None'
+//             }</li>
+//             <li><b>Annotator Precision/Recall:</b><br>
+//               ${Object.entries(r.perAnnotator)
+//                 .map(([u, v]) => `&nbsp;&nbsp;${u}: P=${v.precision}%, R=${v.recall}%`)
+//                 .join('<br>')}
+//             </li>
+//           </ul>
+//         </div>
+//       `).join('')}
+//     `;
+//   }
+
+//   const analysis = document.getElementById('analysisResults');
+//   if (analysis) analysis.style.display = 'block';
+
+//   const pairwiseContainer = document.getElementById('pairwiseF1');
+//   if (pairwiseContainer) {
+//     pairwiseContainer.innerHTML =
+//       '<h4>Pairwise F1 by Annotator</h4>' +
+//       pairwiseF1.map(p => `<div>${p.pair}: <b>${p.f1}%</b></div>`).join('');
+//   }
+
+//   const labelF1Container = document.getElementById('labelF1');
+//   if (labelF1Container) {
+//     labelF1Container.innerHTML =
+//       '<h4>F1 by Label Category</h4>' +
+//       f1ByLabel.map(l => `<div>${l.label}: <b>${l.f1}%</b></div>`).join('');
+//   }
+
+//   const colorCounts = { red: 0, yellow: 0, green: 0 };
+//   segments.forEach(s => { if (s.className && s.className in colorCounts) colorCounts[s.className]++; });
+//   const totalSegs = colorCounts.red + colorCounts.yellow + colorCounts.green;
+//   const pct = k => totalSegs ? ((colorCounts[k] / totalSegs) * 100).toFixed(1) + '%' : '0%';
+
+//   const mismatch = document.getElementById('mismatchDist');
+//   if (mismatch) {
+//     mismatch.innerHTML = `
+//       <h4>Color Distribution</h4>
+//       <div>🟢 Green (agreement): <b>${pct('green')}</b></div>
+//       <div>🟡 Yellow (partial): <b>${pct('yellow')}</b></div>
+//       <div>🔴 Red (conflict): <b>${pct('red')}</b></div>
+//     `;
+//   }
+
+//   const labelFilterContainer = document.getElementById('labelFilterContainer');
+//   if (labelFilterContainer) {
+//     const labels = [...new Set((task.annotations || [])
+//       .flatMap(a => (a.result || []).map(r => (Array.isArray(r.value?.labels) ? r.value.labels[0] : r.value?.labels)))
+//       .filter(Boolean))];
+
+//     // Clear existing
+//     labelFilterContainer.innerHTML = `
+//       <button class="label-filter-btn active" data-label="all">All Labels</button>
+//     ` + labels.map(l => `<button class="label-filter-btn" data-label="${l}">${l}</button>`).join('');
+
+//     // Add event listeners
+//     labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(btn => {
+//       btn.addEventListener('click', () => {
+//         labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(b => b.classList.remove('active'));
+//         btn.classList.add('active');
+//         applyLabelFilter(btn.dataset.label);
+//       });
+//     });
+//   }
+
+//   if (statsEl) statsEl.innerHTML = 'Analysis complete. Stats updated below.';
+// }
+// function processTask(task) {
+//   const container = document.getElementById('policyContainer');
+//   if (!container) { console.error('Policy container not found'); return; }
+//   container.innerHTML = '';
+
+//   // ---------------------------------------------------------------
+//   // 🧭 STEP 1. Render HTML + compute Label Studio–style offset shift
+//   // ---------------------------------------------------------------
+//   const rawHTML = task?.data?.text || task?.file_upload || '';
+//   const parser = new DOMParser();
+//   const parsed = parser.parseFromString(rawHTML, 'text/html');
+//   const bodyHTML = parsed.body ? parsed.body.innerHTML : rawHTML;
+//   container.innerHTML = bodyHTML;
+
+//   const browserText = (container.textContent || '').replace(/\s+/g, ' ').trim();
+
+//   // Recreate LS flattened text
+//   function flattenForLabelStudio(html) {
+//     const doc = new DOMParser().parseFromString(html, 'text/html');
+//     const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null);
+//     let lsText = '';
+//     while (walker.nextNode()) {
+//       const nodeText = walker.currentNode.nodeValue || '';
+//       lsText += nodeText.replace(/\s+/g, ' ');
+//     }
+//     return lsText.replace(/\s+/g, ' ').trim();
+//   }
+
+//   const lsText = flattenForLabelStudio(rawHTML);
+
+//   // 🧩 Adaptive alignment detection
+//   function findAlignmentShift(lsText, browserText) {
+//     const ls = lsText.toLowerCase();
+//     const dom = browserText.toLowerCase();
+//     for (let i = 0; i < Math.min(ls.length, 800); i += 40) {
+//       const snippet = ls.slice(i, i + 60).trim();
+//       if (snippet.length < 10) continue;
+//       const idx = dom.indexOf(snippet);
+//       if (idx !== -1) return idx - i; // relative shift
+//     }
+//     return 0;
+//   }
+
+//   let alignmentShift = findAlignmentShift(lsText, browserText);
+//   if (alignmentShift !== 0) {
+//     console.log(`🔧 Adaptive alignment shift detected: ${alignmentShift > 0 ? '+' : ''}${alignmentShift}`);
+//   } else {
+//     console.warn('⚠️ Could not auto-align; using shift 0 (default).');
+//   }
+
+//   function lsToDomOffset(lsOffset) {
+//     return lsOffset + alignmentShift;
+//   }
+
+//   // ---------------------------------------------------------------
+//   // 🟦 STEP 2. Build annotation spans
+//   // ---------------------------------------------------------------
+//   const annSpans = [];
+//   const allUsers = new Set();
+
+//   (task.annotations || []).forEach(annObj => {
+//     const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+//     allUsers.add(userEmail);
+//     (annObj.result || []).forEach(r => {
+//       if (r.value?.globalOffsets) {
+//         const start = lsToDomOffset(Number(r.value.globalOffsets.start));
+//         const end = lsToDomOffset(Number(r.value.globalOffsets.end));
+//         annSpans.push({
+//           start,
+//           end,
+//           user: userEmail,
+//           label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
+//           text: r.value.text || ''
+//         });
+//       }
+//     });
+//   });
+
+//   const statsEl = document.getElementById('stats');
+//   if (!annSpans.length) {
+//     if (statsEl) statsEl.innerText = 'No annotation spans found.';
+//     updateStatsDisplay(0, 0, 0);
+//     return;
+//   }
+
+//   // ---------------------------------------------------------------
+//   // 🟨 STEP 3. Build segments for highlighting
+//   // ---------------------------------------------------------------
+//   const totalLen = annSpans.reduce((m, s) => Math.max(m, s.end), 0);
+//   const breakSet = new Set([0, totalLen]);
+//   annSpans.forEach(s => { breakSet.add(s.start); breakSet.add(s.end); });
+//   const breaks = [...breakSet].sort((a, b) => a - b);
+
+//   const segments = [];
+//   for (let i = 0; i < breaks.length - 1; i++) {
+//     const s = breaks[i], e = breaks[i + 1];
+//     if (s === e) continue;
+//     const covering = annSpans.filter(a => a.start <= s && a.end >= e);
+//     if (covering.length > 0) {
+//       const { className, details } = computeColorAndDetails(covering, allUsers);
+//       segments.push({ start: s, end: e, covering, className, details });
+//     }
+//   }
+
+//   const normToDom = buildNormalizedMap(container);
+//   window.__lastTaskSegments = { segments, normToDom };
+
+//   // ---------------------------------------------------------------
+//   // 🎨 STEP 4. Render CSS highlights
+//   // ---------------------------------------------------------------
+//   const supportsHighlights =
+//     typeof CSS !== 'undefined' && CSS.highlights && typeof CSS.highlights.set === 'function';
+
+//   if (!document.getElementById('textColorHighlightStyles')) {
+//     const style = document.createElement('style');
+//     style.id = 'textColorHighlightStyles';
+//     style.textContent = `
+//       ::highlight(agree)    { color:#16a34a; background:transparent; }
+//       ::highlight(partial)  { color:#ca8a04; background:transparent; }
+//       ::highlight(conflict) { color:#dc2626; background:transparent; }
+//       ::highlight(hoverSeg) { text-decoration:underline; }
+//     `;
+//     document.head.appendChild(style);
+//   }
+
+//   function renderHighlights(segList) {
+//     if (!supportsHighlights) return;
+//     try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+//     const agree = [], partial = [], conflict = [];
+//     segList.forEach(seg => {
+//       const range = toRangeFromNorm(normToDom, seg.start, seg.end);
+//       if (!range) return;
+//       if (seg.className === 'green') agree.push(range);
+//       else if (seg.className === 'yellow') partial.push(range);
+//       else if (seg.className === 'red') conflict.push(range);
+//     });
+//     if (agree.length)   CSS.highlights.set('agree',   new Highlight(...agree));
+//     if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+//     if (conflict.length)CSS.highlights.set('conflict',new Highlight(...conflict));
+//   }
+
+//   renderHighlights(segments);
+
+//   // ---------------------------------------------------------------
+//   // 🖱️ STEP 5. Hover + lock for details
+//   // ---------------------------------------------------------------
+//   const detailsEl = document.getElementById('details');
+//   const relationInfo = document.getElementById('relationInfo');
+//   let locked = false, lastKey = null, lockedSeg = null;
+
+//   function showSegmentDetails(seg) {
+//     if (!detailsEl) return;
+//     if (!seg) { detailsEl.innerHTML = ''; if (relationInfo) relationInfo.innerHTML = ''; return; }
+
+//     let html = seg.details || 'No labels';
+//     try {
+//       const wordText = (container.textContent || '').substring(seg.start, seg.end).trim();
+//       const relationTuples = [];
+
+//       (task.annotations || []).forEach(annObj => {
+//         const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
+//         const nodes = [], links = [];
+//         (annObj.result || []).forEach(r => {
+//           if (r.type === 'labels' && r.value?.labels) {
+//             nodes.push({
+//               id: r.id,
+//               text: r.value.text || '',
+//               label: Array.isArray(r.value.labels) ? r.value.labels[0] : r.value.labels
+//             });
+//           } else if (r.type === 'relation' && r.from_id && r.to_id) {
+//             links.push({ source: r.from_id, target: r.to_id });
+//           }
+//         });
+//         links.forEach(l => {
+//           const src = nodes.find(n => n.id === l.source);
+//           const tgt = nodes.find(n => n.id === l.target);
+//           if (src && tgt && (src.text.includes(wordText) || tgt.text.includes(wordText))) {
+//             relationTuples.push(
+//               `${userEmail}: (<b>${src.label || 'Label'} → ${tgt.label || 'Label'}</b>) – “${src.text}” → “${tgt.text}”`
+//             );
+//           }
+//         });
+//       });
+
+//       if (relationTuples.length > 0) {
+//         const relationHTML = relationTuples.map(t => `<div style="margin-bottom:4px;">${t}</div>`).join('');
+//         html += `<hr><b>Relations:</b><br>${relationHTML}`;
+//         if (relationInfo) relationInfo.innerHTML = relationHTML;
+//       } else if (relationInfo) relationInfo.innerHTML = '';
+//     } catch (e) { console.warn('Relation tuple extraction failed:', e); }
+
+//     detailsEl.innerHTML = html;
+//   }
+
+//   function caretToNormIndex(x, y) {
+//     let rng = null;
+//     if (document.caretRangeFromPoint) rng = document.caretRangeFromPoint(x, y);
+//     else if (document.caretPositionFromPoint) {
+//       const pos = document.caretPositionFromPoint(x, y);
+//       if (pos) { rng = document.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); }
+//     }
+//     if (!rng || !rng.startContainer) return null;
+//     const node = rng.startContainer;
+//     const offset = rng.startOffset;
+//     for (let i = 0; i < normToDom.length; i++) {
+//       const map = normToDom[i];
+//       if (map.node === node && map.offset >= offset) return i;
+//     }
+//     return null;
+//   }
+
+//   function segAtNormIndex(i) {
+//     return segments.find(s => i >= s.start && i < s.end) || null;
+//   }
+
+//   function setHover(seg) {
+//     if (!supportsHighlights) return;
+//     try { CSS.highlights.delete('hoverSeg'); } catch {}
+//     if (seg) {
+//       const r = toRangeFromNorm(normToDom, seg.start, seg.end);
+//       if (r) CSS.highlights.set('hoverSeg', new Highlight(r));
+//     }
+//   }
+
+//   container.style.cursor = 'text';
+//   container.addEventListener('mousemove', e => {
+//     if (locked) return;
+//     const idx = caretToNormIndex(e.clientX, e.clientY);
+//     const seg = segAtNormIndex(idx);
+//     const key = seg ? `${seg.start}-${seg.end}` : null;
+//     if (key === lastKey) return;
+//     lastKey = key;
+//     setHover(seg);
+//     showSegmentDetails(seg);
+//   });
+//   container.addEventListener('mouseleave', () => {
+//     if (locked) return;
+//     lastKey = null;
+//     setHover(null);
+//     showSegmentDetails(null);
+//   });
+//   container.addEventListener('click', e => {
+//     const idx = caretToNormIndex(e.clientX, e.clientY);
+//     const seg = segAtNormIndex(idx);
+//     if (locked && seg === lockedSeg) {
+//       locked = false; lockedSeg = null;
+//       if (detailsEl) detailsEl.classList.remove('locked');
+//       setHover(null); showSegmentDetails(null);
+//     } else {
+//       locked = true; lockedSeg = seg;
+//       if (detailsEl) detailsEl.classList.add('locked');
+//       setHover(seg); showSegmentDetails(seg);
+//     }
+//   });
+
+//   // ---------------------------------------------------------------
+//   // 📊 STEP 6. Metrics & Panels
+//   // ---------------------------------------------------------------
+//   const grouped = {};
+//   annSpans.forEach(a => { (grouped[`${a.start}-${a.end}`] ||= []).push(a); });
+//   const fullAgree = Object.values(grouped).filter(list => {
+//     const labels = [...new Set(list.map(x => x.label))];
+//     const users = [...new Set(list.map(x => x.user))];
+//     return labels.length === 1 && users.length > 1;
+//   }).length;
+
+//   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
+
+//   const f1Metrics = calculateF1Metrics(annSpans, allUsers);
+//   const f1ByLabel = calculateF1ByLabel(annSpans, allUsers);
+
+//   const f1El = document.getElementById('f1Score');
+//   if (f1El) f1El.textContent = f1Metrics.f1Score + '%';
+
+//   const colorCounts = { red: 0, yellow: 0, green: 0 };
+//   segments.forEach(s => { if (s.className && s.className in colorCounts) colorCounts[s.className]++; });
+//   const totalSegs = colorCounts.red + colorCounts.yellow + colorCounts.green;
+//   const pct = k => totalSegs ? ((colorCounts[k] / totalSegs) * 100).toFixed(1) + '%' : '0%';
+
+//   const mismatch = document.getElementById('mismatchDist');
+//   if (mismatch) {
+//     mismatch.innerHTML = `
+//       <h4>Color Distribution</h4>
+//       <div>🟢 Green (agreement): <b>${pct('green')}</b></div>
+//       <div>🟡 Yellow (partial): <b>${pct('yellow')}</b></div>
+//       <div>🔴 Red (conflict): <b>${pct('red')}</b></div>
+//     `;
+//   }
+
+//   // ---------------------------------------------------------------
+//   // 🏷️ STEP 7. Label Filter Buttons
+//   // ---------------------------------------------------------------
+//   const labelFilterContainer = document.getElementById('labelFilterContainer');
+//   if (labelFilterContainer) {
+//     const labels = [...new Set((task.annotations || [])
+//       .flatMap(a => (a.result || []).map(r => (Array.isArray(r.value?.labels) ? r.value.labels[0] : r.value?.labels)))
+//       .filter(Boolean))];
+
+//     labelFilterContainer.innerHTML =
+//       `<button class="label-filter-btn active" data-label="all">All Labels</button>` +
+//       labels.map(l => `<button class="label-filter-btn" data-label="${l}">${l}</button>`).join('');
+
+//     labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(btn => {
+//       btn.addEventListener('click', () => {
+//         labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(b => b.classList.remove('active'));
+//         btn.classList.add('active');
+//         applyLabelFilter(btn.dataset.label);
+//       });
+//     });
+//   }
+
+//   function applyLabelFilter(labelType) {
+//     if (!window.__lastTaskSegments) return;
+//     const { segments, normToDom } = window.__lastTaskSegments;
+//     if (!supportsHighlights) return;
+
+//     try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+
+//     const agree = [], partial = [];
+//     segments.forEach(seg => {
+//       const hasLabel = seg.covering.some(a => a.label === labelType);
+//       if (labelType !== 'all' && !hasLabel) return;
+//       const range = toRangeFromNorm(normToDom, seg.start, seg.end);
+//       if (!range) return;
+
+//       // when filtering by label, no red conflict (only green/yellow)
+//       if (seg.className === 'green') agree.push(range);
+//       else if (seg.className === 'yellow') partial.push(range);
+//       else if (seg.className === 'red' && labelType === 'all') partial.push(range);
+//     });
+
+//     if (agree.length) CSS.highlights.set('agree', new Highlight(...agree));
+//     if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+//   }
+
+//   if (statsEl) statsEl.innerHTML = 'Analysis complete. Stats updated below.';
+// }
 function processTask(task) {
   const container = document.getElementById('policyContainer');
   if (!container) { console.error('Policy container not found'); return; }
   container.innerHTML = '';
 
   const rawHTML = task?.data?.text || task?.file_upload || '';
+  // Render original HTML (keep structure)
   container.innerHTML = rawHTML;
 
+  // ---------- Normalizers ----------
+  const ZW = /[\u200B-\u200D\uFEFF]/g;
+  const NBSP = /\u00A0/g;
+  function normLS(s) {
+    // Label Studio-like: strip ZW, replace NBSP with space, collapse whitespace to one space
+    return (s || '').replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
+  }
+
+  // Flatten the CURRENT DOM to a single string & map each char back to (node,offset)
+  function buildDomFlatAndMap(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    let flat = '';
+    const map = []; // index -> {node, offset}
+    let lastWasSpace = true;
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      // Skip hidden nodes
+      const pe = node.parentElement;
+      if (pe) {
+        const cs = getComputedStyle(pe);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || pe.getAttribute('aria-hidden') === 'true') continue;
+      }
+      const raw = node.nodeValue || '';
+      // Normalize this chunk like LS does
+      const chunk = raw.replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
+      if (!chunk.length) continue;
+
+      for (let i = 0; i < chunk.length; i++) {
+        const ch = chunk[i];
+        if (/\s/.test(ch)) {
+          if (lastWasSpace) continue;           // collapse multiple
+          flat += ' ';
+          map.push({ node, offset: Math.min(i, raw.length - 1) });
+          lastWasSpace = true;
+        } else {
+          flat += ch;
+          map.push({ node, offset: Math.min(i, raw.length - 1) });
+          lastWasSpace = false;
+        }
+      }
+      // Ensure we don't force a trailing space here; next node decides
+    }
+    return { flat, map };
+  }
+
+  // Build LS-source flat text for scaling (what LS likely used)
+  const lsSourceFlat = normLS(task?.data?.text || container.textContent || '');
+
+  // For fallback: attempt a rough LS->DOM index map by walking the parsed HTML text nodes
+  function buildLsIndexMapFromHTML(html, domFlatLen) {
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const walker = document.createTreeWalker(doc.body || doc, NodeFilter.SHOW_TEXT, null);
+      let lsFlat = '';
+      const lsIndexMap = [];
+      let cursor = 0;
+      while (walker.nextNode()) {
+        const raw = walker.currentNode.nodeValue || '';
+        const chunk = raw.replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
+        for (let i = 0; i < chunk.length; i++) {
+          lsFlat += chunk[i];
+          lsIndexMap.push(cursor++);
+        }
+      }
+      // If empty, create a trivial map
+      if (!lsFlat.length) {
+        const arr = new Array(domFlatLen).fill(0).map((_, i) => i);
+        return { lsFlat: '', lsIndexMap: arr };
+      }
+      return { lsFlat, lsIndexMap };
+    } catch {
+      const arr = new Array(domFlatLen).fill(0).map((_, i) => i);
+      return { lsFlat: '', lsIndexMap: arr };
+    }
+  }
+
+  // Find all exact matches of "needle" inside "hay" (both already normalized)
+  function findAll(hay, needle) {
+    const hits = [];
+    if (!needle || !needle.length) return hits;
+    let pos = 0;
+    while (true) {
+      const idx = hay.indexOf(needle, pos);
+      if (idx === -1) break;
+      hits.push(idx);
+      pos = idx + 1;
+    }
+    return hits;
+  }
+
+  // Map a flat index range back to a DOM Range
+  function toRangeFromFlat(flatMap, start, end) {
+    const s = flatMap[Math.max(0, Math.min(start, flatMap.length - 1))];
+    const e = flatMap[Math.max(0, Math.min(end - 1, flatMap.length - 1))];
+    if (!s || !e) return null;
+    const r = document.createRange();
+    r.setStart(s.node, s.offset);
+    r.setEnd(e.node, e.offset + 1);
+    return r;
+  }
+
+  // Build DOM flat & map
+  const { flat: domFlat, map: domFlatMap } = buildDomFlatAndMap(container);
+  // Build rough LS map for fallback
+  const { lsFlat, lsIndexMap } = buildLsIndexMapFromHTML(rawHTML, domFlat.length);
+
+  function fallbackLsToDom(lsOffset) {
+    const ratio = lsFlat ? (domFlat.length / lsFlat.length) : 1;
+    const guessFlat = Math.max(0, Math.min(domFlat.length - 1, Math.floor(lsOffset * ratio)));
+    return guessFlat;
+  }
+
+  // ---------- Collect spans with robust per-span alignment ----------
   const annSpans = [];
   const allUsers = new Set();
 
   (task.annotations || []).forEach(annObj => {
     const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
     allUsers.add(userEmail);
+
     (annObj.result || []).forEach(r => {
-      if (r.value?.globalOffsets) {
-        annSpans.push({
-          start: Number(r.value.globalOffsets.start),
-          end: Number(r.value.globalOffsets.end),
-          user: userEmail,
-          label: Array.isArray(r.value.labels) ? r.value.labels[0] : (r.value.labels || null),
-          text: r.value.text || ''
-        });
+      const go = r.value?.globalOffsets;
+      if (!go) return;
+
+      const lsStart = Number(go.start);
+      const lsEnd   = Number(go.end);
+      const rawText = r.value?.text || ''; // LS provides the exact labeled text
+      const needle  = normLS(rawText);
+
+      let domStart = null, domEnd = null;
+
+      if (needle && needle.length) {
+        // Scaled guess of where this should be in domFlat
+        const scale = lsSourceFlat ? (domFlat.length / lsSourceFlat.length) : 1;
+        const scaledGuess = Math.max(0, Math.min(domFlat.length - 1, Math.floor(lsStart * scale)));
+
+        // Find all occurrences and pick the one closest to the scaled guess
+        const hits = findAll(domFlat, needle);
+        if (hits.length) {
+          let best = hits[0], bestDist = Math.abs(hits[0] - scaledGuess);
+          for (let i = 1; i < hits.length; i++) {
+            const d = Math.abs(hits[i] - scaledGuess);
+            if (d < bestDist) { best = hits[i]; bestDist = d; }
+          }
+          domStart = best;
+          domEnd = domStart + needle.length;
+        }
       }
+
+      // Fallback: proportional mapping (as last resort)
+      if (domStart === null || domEnd === null) {
+        const sGuess = fallbackLsToDom(lsStart);
+        const eGuess = fallbackLsToDom(lsEnd);
+        domStart = sGuess;
+        domEnd = Math.max(domStart + 1, eGuess);
+      }
+
+      annSpans.push({
+        start: domStart,
+        end: domEnd,
+        user: userEmail,
+        label: Array.isArray(r.value?.labels) ? r.value.labels[0] : (r.value?.labels || null),
+        text: rawText
+      });
     });
   });
 
@@ -376,7 +1276,7 @@ function processTask(task) {
     return;
   }
 
-  // Build segments
+  // ---------- Build segments (same as before) ----------
   const totalLen = annSpans.reduce((m, s) => Math.max(m, s.end), 0);
   const breakSet = new Set([0, totalLen]);
   annSpans.forEach(s => { breakSet.add(s.start); breakSet.add(s.end); });
@@ -393,10 +1293,10 @@ function processTask(task) {
     }
   }
 
-  // index map
-  const normToDom = buildNormalizedMap(container);
+  // Save for filters
+  window.__lastTaskSegments = { segments, domFlatMap };
 
-  // CSS Custom Highlight API
+  // ---------- CSS Custom Highlight API ----------
   const supportsHighlights = typeof CSS !== 'undefined' && CSS.highlights && typeof CSS.highlights.set === 'function';
   if (!document.getElementById('textColorHighlightStyles')) {
     const style = document.createElement('style');
@@ -410,24 +1310,26 @@ function processTask(task) {
     document.head.appendChild(style);
   }
 
-  if (supportsHighlights) {
+  function paintAllSegments() {
+    if (!supportsHighlights) return;
     try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+
     const agree = [], partial = [], conflict = [];
     segments.forEach(seg => {
-      const range = toRangeFromNorm(normToDom, seg.start, seg.end);
+      const range = toRangeFromFlat(domFlatMap, seg.start, seg.end);
       if (!range) return;
       if (seg.className === 'green') agree.push(range);
       else if (seg.className === 'yellow') partial.push(range);
       else if (seg.className === 'red') conflict.push(range);
     });
+
     if (agree.length)   CSS.highlights.set('agree',   new Highlight(...agree));
     if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
     if (conflict.length)CSS.highlights.set('conflict',new Highlight(...conflict));
-  } else {
-    console.warn('CSS Custom Highlight API not supported; color display disabled.');
   }
+  paintAllSegments();
 
-  // Hover/lock
+  // ---------- Hover / lock (unchanged, but uses domFlatMap now) ----------
   const detailsEl = document.getElementById('details');
   const relationInfo = document.getElementById('relationInfo');
   let locked = false, lastKey = null, lockedSeg = null;
@@ -438,12 +1340,12 @@ function processTask(task) {
 
     let html = seg.details || 'No labels';
 
-    // Relation tuples for this segment (best-effort)
+    // Relation tuples (unchanged)
     try {
-      const wordText = (container.textContent || '').substring(seg.start, seg.end).trim();
+      const wordText = (container.textContent || '').replace(/\s+/g, ' ').slice(seg.start, seg.end).trim();
       const relationTuples = [];
 
-      ( __lastTask?.annotations || [] ).forEach(annObj => {
+      (task.annotations || []).forEach(annObj => {
         const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
         const nodes = []; const links = [];
         (annObj.result || []).forEach(r => {
@@ -470,9 +1372,7 @@ function processTask(task) {
         const relationHTML = relationTuples.map(t => `<div style="margin-bottom:4px;">${t}</div>`).join('');
         html += `<hr><b>Relations:</b><br>${relationHTML}`;
         if (relationInfo) relationInfo.innerHTML = relationHTML;
-      } else if (relationInfo) {
-        relationInfo.innerHTML = '';
-      }
+      } else if (relationInfo) relationInfo.innerHTML = '';
     } catch (e) {
       console.warn('Relation tuple extraction failed:', e);
     }
@@ -480,7 +1380,8 @@ function processTask(task) {
     detailsEl.innerHTML = html;
   }
 
-  function caretToNormIndex(x, y) {
+  function caretToFlatIndex(x, y) {
+    // Convert caret DOM position to nearest flat index by scanning domFlatMap
     let rng = null;
     if (document.caretRangeFromPoint) rng = document.caretRangeFromPoint(x, y);
     else if (document.caretPositionFromPoint) {
@@ -488,16 +1389,17 @@ function processTask(task) {
       if (pos) { rng = document.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); }
     }
     if (!rng || !rng.startContainer) return null;
-    const node = rng.startContainer;
-    const offset = rng.startOffset;
-    for (let i = 0; i < normToDom.length; i++) {
-      const map = normToDom[i];
-      if (map.node === node && map.offset >= offset) return i;
+    const node = rng.startContainer, offset = rng.startOffset;
+
+    // Find first mapping entry at/after this (node,offset)
+    for (let i = 0; i < domFlatMap.length; i++) {
+      const m = domFlatMap[i];
+      if (m.node === node && m.offset >= offset) return i;
     }
     return null;
   }
 
-  function segAtNormIndex(i) {
+  function segAtFlatIndex(i) {
     return segments.find(s => i >= s.start && i < s.end) || null;
   }
 
@@ -505,7 +1407,7 @@ function processTask(task) {
     if (!supportsHighlights) return;
     try { CSS.highlights.delete('hoverSeg'); } catch {}
     if (seg) {
-      const r = toRangeFromNorm(normToDom, seg.start, seg.end);
+      const r = toRangeFromFlat(domFlatMap, seg.start, seg.end);
       if (r) CSS.highlights.set('hoverSeg', new Highlight(r));
     }
   }
@@ -514,8 +1416,8 @@ function processTask(task) {
 
   container.addEventListener('mousemove', e => {
     if (locked) return;
-    const idx = caretToNormIndex(e.clientX, e.clientY);
-    const seg = segAtNormIndex(idx);
+    const idx = caretToFlatIndex(e.clientX, e.clientY);
+    const seg = segAtFlatIndex(idx);
     const key = seg ? `${seg.start}-${seg.end}` : null;
     if (key === lastKey) return;
     lastKey = key;
@@ -531,8 +1433,8 @@ function processTask(task) {
   });
 
   container.addEventListener('click', e => {
-    const idx = caretToNormIndex(e.clientX, e.clientY);
-    const seg = segAtNormIndex(idx);
+    const idx = caretToFlatIndex(e.clientX, e.clientY);
+    const seg = segAtFlatIndex(idx);
     if (locked && seg === lockedSeg) {
       locked = false; lockedSeg = null;
       if (detailsEl) detailsEl.classList.remove('locked');
@@ -544,7 +1446,7 @@ function processTask(task) {
     }
   });
 
-  // Metrics & panels
+  // ---------- Metrics & reports (unchanged) ----------
   const grouped = {};
   annSpans.forEach(a => { (grouped[`${a.start}-${a.end}`] ||= []).push(a); });
   const fullAgree = Object.values(grouped).filter(list => {
@@ -581,7 +1483,7 @@ function processTask(task) {
 
   const labelReportContainer = document.getElementById('labelReports');
   if (labelReportContainer) {
-    const reports = generateLabelReports(annSpans, allUsers, __lastTask || task);
+    const reports = generateLabelReports(annSpans, allUsers, task);
     labelReportContainer.innerHTML = `
       <h3>🧾 Label-Level Summary</h3>
       ${Object.values(reports).map(r => `
@@ -624,6 +1526,7 @@ function processTask(task) {
       f1ByLabel.map(l => `<div>${l.label}: <b>${l.f1}%</b></div>`).join('');
   }
 
+  // Color distribution
   const colorCounts = { red: 0, yellow: 0, green: 0 };
   segments.forEach(s => { if (s.className && s.className in colorCounts) colorCounts[s.className]++; });
   const totalSegs = colorCounts.red + colorCounts.yellow + colorCounts.green;
@@ -639,8 +1542,89 @@ function processTask(task) {
     `;
   }
 
+  // ---------- Label filter buttons (preserved) ----------
+  const labelFilterContainer = document.getElementById('labelFilterContainer');
+  if (labelFilterContainer) {
+    const labels = [...new Set((task.annotations || [])
+      .flatMap(a => (a.result || []).map(r => (Array.isArray(r.value?.labels) ? r.value.labels[0] : r.value?.labels)))
+      .filter(Boolean))];
+
+    labelFilterContainer.innerHTML = `
+      <button class="label-filter-btn active" data-label="all">All Labels</button>
+    ` + labels.map(l => `<button class="label-filter-btn" data-label="${l}">${l}</button>`).join('');
+
+    labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyLabelFilter(btn.dataset.label);
+      });
+    });
+  }
+
   if (statsEl) statsEl.innerHTML = 'Analysis complete. Stats updated below.';
+
+  // Uses the new domFlatMap so offsets remain correct under filtering
+  function applyLabelFilter(labelType) {
+    if (!window.__lastTaskSegments) return;
+    const { segments, domFlatMap } = window.__lastTaskSegments;
+    if (!supportsHighlights) return;
+
+    try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+
+    const agree = [], partial = [];
+
+    segments.forEach(seg => {
+      const hasLabel = seg.covering.some(a => a.label === labelType);
+      if (labelType !== 'all' && !hasLabel) return;
+      const range = toRangeFromFlat(domFlatMap, seg.start, seg.end);
+      if (!range) return;
+
+      if (labelType === 'all') {
+        // normal painting
+        if (seg.className === 'green') agree.push(range);
+        else if (seg.className === 'yellow') partial.push(range);
+        else if (seg.className === 'red') partial.push(range); // show red in "all"
+      } else {
+        // in filtered mode, only green/yellow (no red)
+        if (seg.className === 'green') agree.push(range);
+        else if (seg.className === 'yellow') partial.push(range);
+      }
+    });
+
+    if (agree.length) CSS.highlights.set('agree', new Highlight(...agree));
+    if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+  }
 }
+
+
+// function applyLabelFilter(labelType) {
+//   if (!window.__lastTaskSegments) return;
+
+//   const { segments, normToDom } = window.__lastTaskSegments;
+//   const supportsHighlights = typeof CSS !== 'undefined' && CSS.highlights && typeof CSS.highlights.set === 'function';
+//   if (!supportsHighlights) return;
+
+//   try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+
+//   const agree = [], partial = [];
+
+//   segments.forEach(seg => {
+//     const hasLabel = seg.covering.some(a => a.label === labelType);
+//     if (labelType !== 'all' && !hasLabel) return; // skip others
+//     const range = toRangeFromNorm(normToDom, seg.start, seg.end);
+//     if (!range) return;
+
+//     // ✅ when filtering by label, we only show green & yellow (no red)
+//     if (seg.className === 'green') agree.push(range);
+//     else if (seg.className === 'yellow') partial.push(range);
+//     else if (seg.className === 'red' && labelType === 'all') partial.push(range); // keep red only for "all"
+//   });
+
+//   if (agree.length) CSS.highlights.set('agree', new Highlight(...agree));
+//   if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+// }
+
 
 // ---------- label-level reports ----------
 function generateLabelReports(annSpans, allUsers, task) {
