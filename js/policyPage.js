@@ -1,4 +1,4 @@
-console.info('policyPage.js – resilient fetch v2');
+console.info('policyPage.js – resilient fetch v3 (LS-aligned offsets)');
 
 // ---------- API base ----------
 function detectAppRoot() {
@@ -7,7 +7,7 @@ function detectAppRoot() {
 }
 const API_BASE = `${location.origin}${detectAppRoot()}/api`;
 
-// ---------- Robust fetch with fallback on 403/404/405 & network errors ----------
+// ---------- Robust fetch with fallback ----------
 async function apiFetch(path, init) {
   const pretty = `${API_BASE}${path}`;
   const fallback = `${API_BASE}/?route=${encodeURIComponent(path.replace(/^\//, ''))}`;
@@ -61,7 +61,7 @@ let __lastTask = null;
 async function loadPolicyFromServer(name) {
   try {
     showLoading('Loading policy data from server…');
-    const all = await apiJson('/policies');                 // <- uses fallback if needed
+    const all = await apiJson('/policies');
     const policyData = all[name];
     if (!policyData) { showMessage('Policy not found on server.'); return; }
 
@@ -85,7 +85,7 @@ async function loadPolicyFromServer(name) {
     showServerDataInfo(policyData);
 
     __lastTask = Array.isArray(annotationData) ? annotationData[0] : annotationData;
-    processTask(__lastTask); // your existing renderer
+    processTask(__lastTask);
   } catch (err) {
     console.error('Load error:', err);
     showMessage('Could not load server data. You can upload a file manually below.');
@@ -147,105 +147,143 @@ function handleManualUpload(event) {
 }
 
 /* -----------------------------------------------------------------
-   Everything below this line is your existing renderer/metrics code.
-   (No functional changes needed; left as-is so highlights, F1/Jaccard,
-   relations modal, etc., work exactly like before.)
+   LS-CANONICAL NORMALIZATION AND MAPPING (perfect offset alignment)
 ------------------------------------------------------------------*/
 
+/** Given LS-style XPath + offsets, return a DOM Range */
+function lsRangeFromXPathOffsets(container, startPath, startOffset, endPath, endOffset) {
+  try {
+    const doc = container.ownerDocument || document;
+    const fixPath = (xp) => {
+      if (!xp) return xp;
+      // Remove root slash and make relative to container
+      return xp.startsWith('/') ? '.' + xp : xp;
+    };
 
-// ---------- Normalization ----------
-function buildNormalizedMap(container) {
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
-  const normToDom = [];
-  let normIndex = 0, lastWasSpace = false;
-  const isSpace = ch => ch === '\u00A0' || /\s/.test(ch);
+    const evaluateNode = (xp) =>
+      doc.evaluate(fixPath(xp), container, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)
+        .singleNodeValue;
 
-  function isHidden(node) {
-    const el = node.parentElement;
-    if (!el) return false;
-    const tag = el.tagName;
-    if (tag && ['STYLE', 'SCRIPT', 'NOSCRIPT'].includes(tag)) return true;
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden') return true;
-    if (el.getAttribute('aria-hidden') === 'true') return true;
-    let p = el.parentElement;
-    while (p) {
-      const csp = getComputedStyle(p);
-      if (csp.display === 'none' || p.getAttribute('aria-hidden') === 'true') return true;
-      p = p.parentElement;
-    }
-    return false;
+    const startNode = evaluateNode(startPath);
+    const endNode = evaluateNode(endPath);
+    if (!startNode || !endNode) return null;
+
+    const range = doc.createRange();
+    range.setStart(startNode, startOffset);
+    range.setEnd(endNode, endOffset);
+    return range;
+  } catch (e) {
+    console.warn('XPath → Range failed', e, startPath, endPath);
+    return null;
   }
+}
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    if (isHidden(node)) continue;
-    // const text = node.nodeValue.replace(/\r/g, '').replace(/\n/g, ' ');
-    const text = node.nodeValue
-  .replace(/&nbsp;/g, ' ')
-  .replace(/\r?\n|\r/g, ' ')
-  .replace(/\s+/g, ' ');
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      if (isSpace(ch)) {
-        if (!lastWasSpace) { normToDom[normIndex++] = { node, offset: i }; lastWasSpace = true; }
-      } else {
-        normToDom[normIndex++] = { node, offset: i }; lastWasSpace = false;
+
+
+// Replace your existing computeColorAndDetails with this version
+function computeColorAndDetails(covering, allUsers) {
+  if (!covering || covering.length === 0)
+    return { className: null, details: '' };
+
+  // --- 1️⃣ Collect per-user label sets & text snippets ---
+  const perUser = new Map();
+  [...allUsers].forEach(u =>
+    perUser.set(u, { labels: new Set(), entries: [] })
+  );
+
+  covering.forEach(a => {
+    if (!a?.user) return;
+    const userData = perUser.get(a.user);
+    if (!userData) return;
+
+    userData.labels.add(a.label);
+
+    // Record exact XPath offsets for debugging/hover display
+    const startPath = a.startPath || '[no startPath]';
+    const endPath = a.endPath || '[no endPath]';
+    const start = a.startOffset ?? 0;
+    const end = a.endOffset ?? 0;
+    const text = (a.text || '').trim() || '[no text]';
+
+    userData.entries.push({ label: a.label, text, startPath, endPath, start, end });
+  });
+
+  const users = Array.from(perUser.keys());
+  const sets = users.map(u => perUser.get(u).labels);
+
+  // --- 2️⃣ Helper functions ---
+  const isEmpty = s => s.size === 0;
+  const equalSets = (A, B) => A.size === B.size && [...A].every(x => B.has(x));
+  const overlap = (A, B) => [...A].some(x => B.has(x));
+
+  // --- 3️⃣ Determine color logic ---
+  // Green: all annotators labeled this XPath region identically.
+  // Yellow: some annotators missed it or used partial overlaps.
+  // Red: conflicting labels with no overlap.
+  const someoneMissing = sets.some(isEmpty);
+  const allEqualNonEmpty =
+    !someoneMissing && sets.every(s => equalSets(s, sets[0]) && s.size > 0);
+
+  let className, summary;
+
+  if (allEqualNonEmpty) {
+    className = 'green';
+    summary = '✅ All annotators labeled this region identically.';
+  } else {
+    let disjoint = false;
+    for (let i = 0; i < sets.length && !disjoint; i++) {
+      for (let j = i + 1; j < sets.length && !disjoint; j++) {
+        if (!isEmpty(sets[i]) && !isEmpty(sets[j]) && !overlap(sets[i], sets[j])) {
+          disjoint = true;
+        }
       }
     }
-  }
-  return normToDom;
-}
-
-function toRangeFromNorm(normToDom, start, end) {
-  const s = normToDom[Math.max(0, Math.min(start, normToDom.length - 1))];
-  const e = normToDom[Math.max(0, Math.min(end - 1, normToDom.length - 1))];
-  if (!s || !e) return null;
-  const r = document.createRange();
-  r.setStart(s.node, s.offset);
-  r.setEnd(e.node, e.offset + 1);
-  return r;
-}
-
-// ---------- coloring & details ----------
-function computeColorAndDetails(coveringAnns, allAnnotators) {
-  if (!coveringAnns || coveringAnns.length === 0) return { className: null, details: '' };
-
-  const labels = [...new Set(coveringAnns.map(a => a.label).filter(Boolean))];
-  const users = [...new Set(coveringAnns.map(a => a.user))];
-  const allUsers = [...allAnnotators];
-
-  let className;
-  if (labels.length === 1 && users.length === allUsers.length) className = 'green';
-  else if (labels.length > 1) className = 'red';
-  else className = 'yellow';
-
-  const labelsToUsers = {};
-  coveringAnns.forEach(ann => {
-    if (!ann.label) return;
-    if (!labelsToUsers[ann.label]) labelsToUsers[ann.label] = new Set();
-    labelsToUsers[ann.label].add(ann.user);
-  });
-
-  const detailsArr = [];
-  const processedUsers = new Set();
-
-  Object.entries(labelsToUsers).forEach(([label, usersSet]) => {
-    let section = `<b>${label}</b><br>`;
-    section += [...usersSet].map(u => `&nbsp;&nbsp;- ${u}`).join('<br>');
-    detailsArr.push(section);
-    usersSet.forEach(u => processedUsers.add(u));
-  });
-
-  const notLabeled = allUsers.filter(u => !processedUsers.has(u));
-  if (notLabeled.length > 0) {
-    let section = `<b>Not labeled</b><br>`;
-    section += notLabeled.map(u => `&nbsp;&nbsp;- ${u}`).join('<br>');
-    detailsArr.push(section);
+    if (disjoint) {
+      className = 'red';
+      summary =
+        '❌ Annotators assigned completely different label types for this XPath segment.';
+    } else {
+      className = 'yellow';
+      summary = someoneMissing
+        ? '⚠️ Some annotators did not label this region.'
+        : '⚠️ Annotators used overlapping but non-identical labels.';
+    }
   }
 
-  return { className, details: detailsArr.join('<br><br>') };
+  // --- 4️⃣ Build sidebar hover details ---
+  const textComparisons = users
+    .map(u => {
+      const userData = perUser.get(u);
+      const labelList = [...userData.labels].join(', ') || '—';
+      const entryList = userData.entries
+        .map(e => `
+          <div style="margin-left:8px; margin-top:2px;">
+            <span style="color:#555;">Label:</span> <b>${e.label}</b><br>
+          </div>
+        `)
+        .join('');
+      return `
+        <div style="margin-bottom:6px; border-bottom:1px solid #eee; padding-bottom:4px;">
+          <b>${u}</b><br>
+          <span style="color:#555;">Labels:</span> ${labelList}<br>
+        </div>
+      `;
+    })
+    .join('');
+
+  // --- 5️⃣ Compose final HTML (shown in sidebar on hover) ---
+  const details = `
+    <div style="margin-bottom:6px;"><b>${summary}</b></div>
+    <div>${textComparisons}</div>
+  `;
+
+  return { className, details };
 }
+
+
+
+
+
 
 // ---------- metrics ----------
 function updateStatsDisplay(distinctSpansCount, fullAgreements, totalAnnotators) {
@@ -299,26 +337,109 @@ function calculateF1Metrics(annSpans, allUsers) {
   return { precision: Math.round(avgP * 100), recall: Math.round(avgR * 100), f1Score: Math.round(f1 * 100) };
 }
 
+
+// ---------- Flow-relaxed F1 helpers ----------
+
+function countOverlapSorted(a, b) {
+  let i = 0, j = 0, c = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { c++; i++; j++; }
+    else if (a[i] < b[j]) i++;
+    else j++;
+  }
+  return c;
+}
+
+function greedyMatch(weightTriples, mA, mB) {
+  weightTriples.sort((x, y) => y.w - x.w);
+  const usedA = new Set(), usedB = new Set(), match = [];
+  for (const { i, j, w } of weightTriples) {
+    if (w <= 0) break;
+    if (!usedA.has(i) && !usedB.has(j)) {
+      usedA.add(i); usedB.add(j);
+      match.push([i, j]);
+    }
+  }
+  return match;
+}
+
+function buildFlowGroups(spans, label) {
+  const byFlow = new Map();
+  spans.forEach(s => {
+    if (s.label !== label) return;
+    if (!s.globalFlowId) return;
+    if (!byFlow.has(s.globalFlowId)) byFlow.set(s.globalFlowId, new Set());
+    for (let k = s.start; k < s.end; k++) byFlow.get(s.globalFlowId).add(k);
+  });
+  return Array.from(byFlow.values()).map(S => Array.from(S).sort((a, b) => a - b));
+}
+
+function flowRelaxedF1ForLabel(spansA, spansB, label) {
+  const A_L = new Set(), B_L = new Set();
+  spansA.forEach(s => { if (s.label === label) for (let k = s.start; k < s.end; k++) A_L.add(k); });
+  spansB.forEach(s => { if (s.label === label) for (let k = s.start; k < s.end; k++) B_L.add(k); });
+
+  const inter = new Set([...A_L].filter(t => B_L.has(t))).size;
+  const FP = A_L.size - inter;
+  const FN = B_L.size - inter;
+  const precN = A_L.size ? inter / (inter + FP) : 1;
+  const recN = B_L.size ? inter / (inter + FN) : 1;
+  const f1N = (precN + recN) ? (2 * precN * recN) / (precN + recN) : 0;
+
+  const Aflows = buildFlowGroups(spansA, label);
+  const Bflows = buildFlowGroups(spansB, label);
+  if (!Aflows.length || !Bflows.length) return f1N;
+
+  const triples = [];
+  for (let i = 0; i < Aflows.length; i++) {
+    for (let j = 0; j < Bflows.length; j++) {
+      const w = countOverlapSorted(Aflows[i], Bflows[j]);
+      if (w > 0) triples.push({ i, j, w });
+    }
+  }
+  const matches = greedyMatch(triples, Aflows.length, Bflows.length);
+  if (!matches.length) return f1N;
+
+  const S = new Set();
+  matches.forEach(([i, j]) => {
+    Aflows[i].forEach(t => S.add(t));
+    Bflows[j].forEach(t => S.add(t));
+  });
+
+  let TP = 0, FP2 = 0, FN2 = 0;
+  S.forEach(t => {
+    const a = A_L.has(t), b = B_L.has(t);
+    if (a && b) TP++;
+    else if (a && !b) FP2++;
+    else if (!a && b) FN2++;
+  });
+
+  const precM = TP + FP2 === 0 ? 1 : TP / (TP + FP2);
+  const recM = TP + FN2 === 0 ? 1 : TP / (TP + FN2);
+  const f1M = (precM + recM) ? (2 * precM * recM) / (precM + recM) : 0;
+
+  return Math.max(f1N, f1M);
+}
+
 function calculateF1ByLabel(annSpans, allUsers) {
   const labelSet = new Set(annSpans.map(a => a.label).filter(Boolean));
   const results = [];
   const annotators = Array.from(allUsers);
+
   labelSet.forEach(label => {
-    const spansLabel = annSpans.filter(a => a.label === label);
     const pairScores = [];
     for (let i = 0; i < annotators.length; i++) {
       for (let j = i + 1; j < annotators.length; j++) {
-        const spansA = spansLabel.filter(s => s.user === annotators[i]);
-        const spansB = spansLabel.filter(s => s.user === annotators[j]);
-        if (spansA.length === 0 && spansB.length === 0) continue;
-        const { precision, recall } = calculatePairwiseMetrics(spansA, spansB);
-        const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+        const spansA = annSpans.filter(s => s.user === annotators[i]);
+        const spansB = annSpans.filter(s => s.user === annotators[j]);
+        const f1 = flowRelaxedF1ForLabel(spansA, spansB, label);
         pairScores.push(f1);
       }
     }
-    const avgF1 = pairScores.length ? Math.round((pairScores.reduce((a,b)=>a+b,0)/pairScores.length)*100) : 0;
+    const avgF1 = pairScores.length ? Math.round((pairScores.reduce((a, b) => a + b, 0) / pairScores.length) * 100) : 0;
     results.push({ label, f1: avgF1 });
   });
+
   return results;
 }
 
@@ -344,201 +465,110 @@ function calculateJaccardMetrics(annSpans, allUsers) {
   }
   return { jaccard: Math.round((total / cmp) * 100) };
 }
-function stripUnwantedTags(html) {
-  // Parse safely
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
 
-  // Remove unwanted interactive elements entirely
-  doc.querySelectorAll('script, style, iframe, button, input, textarea, form').forEach(el => el.remove());
+// LS-style normalizer: strip ZW, convert NBSP to space, collapse whitespace
+const ZW_RE = /[\u200B-\u200D\uFEFF]/g;
+const NBSP_RE = /\u00A0/g;
 
-  // Replace all <a> links with their plain text
-  doc.querySelectorAll('a').forEach(a => {
-    const span = doc.createElement('span');
-    span.textContent = a.textContent; // keep visible text
-    a.replaceWith(span);
-  });
+// Treat these as "block breaks" that LS effectively separates with a space
+const BLOCK_TAGS = new Set(['P', 'DIV', 'SECTION', 'ARTICLE', 'UL', 'OL', 'LI', 'H1','H2','H3','H4','H5','H6','BR']);
 
-  // Remove inline styles that might hide text or inject pseudo-content
-  doc.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+/**
+ * Build a mapping from LS-normalized flat text indices → live DOM (node,offset)
+ * by walking the **actual** rendered container subtree.
+ * Returns { text, map } where:
+ *   - text is the LS-normalized flat text
+ *   - map[i] = { node, offset } in live DOM for text[i]
+ */
+/**
+ * Build a mapping from Label Studio–normalized flat text indices → live DOM nodes.
+ * This mimics Label Studio’s internal serialization logic for <Text> regions.
+ */
 
-  return doc.body.innerHTML;
+/** Turn LS offsets [start,end) into a live DOM Range using the live map */
+
+/** Build a plain DOM "flat map" for hover hit-testing (mouse→index) */
+function buildDomFlatMap(containerEl) {
+  const walker = document.createTreeWalker(containerEl, NodeFilter.SHOW_TEXT, null);
+  const map = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const raw = node.nodeValue || '';
+    for (let i = 0; i < raw.length; i++) map.push({ node, offset: i });
+  }
+  return map;
 }
+
 
 function processTask(task) {
   const container = document.getElementById('policyContainer');
   if (!container) { console.error('Policy container not found'); return; }
   container.innerHTML = '';
 
-  const rawHTML = task?.data?.text || task?.file_upload || '';
-  const cleanHTML = stripUnwantedTags(rawHTML);  // ✅ sanitize first
-  container.innerHTML = cleanHTML;
+  // ---------- Render LS HTML ----------
+  container.innerHTML = task?.data?.text || task.file_upload || '';
 
-  // ---------- Normalizers ----------
-  const ZW = /[\u200B-\u200D\uFEFF]/g;
-  const NBSP = /\u00A0/g;
-  function normLS(s) {
-    // Label Studio-like: strip ZW, replace NBSP with space, collapse whitespace to one space
-    return (s || '').replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
-  }
 
-  // Flatten the CURRENT DOM to a single string & map each char back to (node,offset)
-  function buildDomFlatAndMap(root) {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    let flat = '';
-    const map = []; // index -> {node, offset}
-    let lastWasSpace = true;
+  // ---------- Build maps ----------
 
-    while (walker.nextNode()) {
-      const node = walker.currentNode;
-      // Skip hidden nodes
-      const pe = node.parentElement;
-      if (pe) {
-        const cs = getComputedStyle(pe);
-        if (cs.display === 'none' || cs.visibility === 'hidden' || pe.getAttribute('aria-hidden') === 'true') continue;
-      }
-      const raw = node.nodeValue || '';
-      // Normalize this chunk like LS does
-      const chunk = raw.replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
-      if (!chunk.length) continue;
+  const domFlatMap = buildDomFlatMap(container);
+  window.__domFlatMap = domFlatMap;
 
-      for (let i = 0; i < chunk.length; i++) {
-        const ch = chunk[i];
-        if (/\s/.test(ch)) {
-          if (lastWasSpace) continue;           // collapse multiple
-          flat += ' ';
-          map.push({ node, offset: Math.min(i, raw.length - 1) });
-          lastWasSpace = true;
-        } else {
-          flat += ch;
-          map.push({ node, offset: Math.min(i, raw.length - 1) });
-          lastWasSpace = false;
-        }
-      }
-      // Ensure we don't force a trailing space here; next node decides
-    }
-    return { flat, map };
-  }
-
-  // Build LS-source flat text for scaling (what LS likely used)
-  const lsSourceFlat = normLS(task?.data?.text || container.textContent || '');
-
-  // For fallback: attempt a rough LS->DOM index map by walking the parsed HTML text nodes
-  function buildLsIndexMapFromHTML(html, domFlatLen) {
-    try {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const walker = document.createTreeWalker(doc.body || doc, NodeFilter.SHOW_TEXT, null);
-      let lsFlat = '';
-      const lsIndexMap = [];
-      let cursor = 0;
-      while (walker.nextNode()) {
-        const raw = walker.currentNode.nodeValue || '';
-        const chunk = raw.replace(ZW, '').replace(NBSP, ' ').replace(/\s+/g, ' ');
-        for (let i = 0; i < chunk.length; i++) {
-          lsFlat += chunk[i];
-          lsIndexMap.push(cursor++);
-        }
-      }
-      // If empty, create a trivial map
-      if (!lsFlat.length) {
-        const arr = new Array(domFlatLen).fill(0).map((_, i) => i);
-        return { lsFlat: '', lsIndexMap: arr };
-      }
-      return { lsFlat, lsIndexMap };
-    } catch {
-      const arr = new Array(domFlatLen).fill(0).map((_, i) => i);
-      return { lsFlat: '', lsIndexMap: arr };
-    }
-  }
-
-  // Find all exact matches of "needle" inside "hay" (both already normalized)
-  function findAll(hay, needle) {
-    const hits = [];
-    if (!needle || !needle.length) return hits;
-    let pos = 0;
-    while (true) {
-      const idx = hay.indexOf(needle, pos);
-      if (idx === -1) break;
-      hits.push(idx);
-      pos = idx + 1;
-    }
-    return hits;
-  }
-
-  // Map a flat index range back to a DOM Range
-  function toRangeFromFlat(flatMap, start, end) {
-    const s = flatMap[Math.max(0, Math.min(start, flatMap.length - 1))];
-    const e = flatMap[Math.max(0, Math.min(end - 1, flatMap.length - 1))];
-    if (!s || !e) return null;
-    const r = document.createRange();
-    r.setStart(s.node, s.offset);
-    r.setEnd(e.node, e.offset + 1);
-    return r;
-  }
-
-  // Build DOM flat & map
-  const { flat: domFlat, map: domFlatMap } = buildDomFlatAndMap(container);
-  // Build rough LS map for fallback
-  const { lsFlat, lsIndexMap } = buildLsIndexMapFromHTML(rawHTML, domFlat.length);
-
-  function fallbackLsToDom(lsOffset) {
-    const ratio = lsFlat ? (domFlat.length / lsFlat.length) : 1;
-    const guessFlat = Math.max(0, Math.min(domFlat.length - 1, Math.floor(lsOffset * ratio)));
-    return guessFlat;
-  }
-
-  // ---------- Collect spans with robust per-span alignment ----------
-  const annSpans = [];
   const allUsers = new Set();
+  const annSpans = [];
+  const visibleText = container.textContent.replace(/\s+/g, ' ');
 
+  // ---------- Robust text-based spans ----------
   (task.annotations || []).forEach(annObj => {
     const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
     allUsers.add(userEmail);
-
     (annObj.result || []).forEach(r => {
-      const go = r.value?.globalOffsets;
-      if (!go) return;
+      if (r.type !== 'labels' || !r.value?.text) return;
 
-      const lsStart = Number(go.start);
-      const lsEnd   = Number(go.end);
-      const rawText = r.value?.text || ''; // LS provides the exact labeled text
-      const needle  = normLS(rawText);
+      const label = Array.isArray(r.value?.labels)
+        ? r.value.labels[0]
+        : (r.value?.labels || null);
+      // const snippet = r.value.text.replace(/\s+/g, ' ').trim();
+      // const targetStart = Number(r.value?.globalOffsets?.start ?? 0);
 
-      let domStart = null, domEnd = null;
+      // const matches = [];
+      // let idx = visibleText.indexOf(snippet);
+      // while (idx !== -1) {
+      //   matches.push(idx);
+      //   idx = visibleText.indexOf(snippet, idx + 1);
+      // }
 
-      if (needle && needle.length) {
-        // Scaled guess of where this should be in domFlat
-        const scale = lsSourceFlat ? (domFlat.length / lsSourceFlat.length) : 1;
-        const scaledGuess = Math.max(0, Math.min(domFlat.length - 1, Math.floor(lsStart * scale)));
+      // let best = null, minDist = Infinity;
+      // for (const m of matches) {
+      //   const d = Math.abs(m - targetStart);
+      //   if (d < minDist) { minDist = d; best = m; }
+      // }
+      // if (best == null) return;
 
-        // Find all occurrences and pick the one closest to the scaled guess
-        const hits = findAll(domFlat, needle);
-        if (hits.length) {
-          let best = hits[0], bestDist = Math.abs(hits[0] - scaledGuess);
-          for (let i = 1; i < hits.length; i++) {
-            const d = Math.abs(hits[i] - scaledGuess);
-            if (d < bestDist) { best = hits[i]; bestDist = d; }
-          }
-          domStart = best;
-          domEnd = domStart + needle.length;
-        }
-      }
+      // const start = best;
+      // const end = best + snippet.length;
+  const snippet = (r.value.text || '').replace(/\s+/g, ' ').trim();
 
-      // Fallback: proportional mapping (as last resort)
-      if (domStart === null || domEnd === null) {
-        const sGuess = fallbackLsToDom(lsStart);
-        const eGuess = fallbackLsToDom(lsEnd);
-        domStart = sGuess;
-        domEnd = Math.max(domStart + 1, eGuess);
-      }
+  const startPath = r.value.start;
+  const endPath = r.value.end;
+  const startOffset = Number(r.value.startOffset ?? 0);
+  const endOffset = Number(r.value.endOffset ?? startOffset);
 
-      annSpans.push({
-        start: domStart,
-        end: domEnd,
-        user: userEmail,
-        label: Array.isArray(r.value?.labels) ? r.value.labels[0] : (r.value?.labels || null),
-        text: rawText
-      });
+const range = lsRangeFromXPathOffsets(container, startPath, startOffset, endPath, endOffset);
+if (!range) return;
+
+annSpans.push({
+  startPath,
+  endPath,
+  startOffset,
+  endOffset,
+  user: userEmail,
+  label,
+  text: snippet,
+  range,
+});
+
+
     });
   });
 
@@ -549,27 +579,61 @@ function processTask(task) {
     return;
   }
 
-  // ---------- Build segments (same as before) ----------
-  const totalLen = annSpans.reduce((m, s) => Math.max(m, s.end), 0);
-  const breakSet = new Set([0, totalLen]);
-  annSpans.forEach(s => { breakSet.add(s.start); breakSet.add(s.end); });
-  const breaks = [...breakSet].sort((a, b) => a - b);
+  // ---------- Build segments ----------// ---------- Build fine-grained XPath-based segments ----------
+const segments = [];
+const breaksByPath = {};
 
-  const segments = [];
-  for (let i = 0; i < breaks.length - 1; i++) {
-    const s = breaks[i], e = breaks[i + 1];
-    if (s === e) continue;
-    const covering = annSpans.filter(a => a.start <= s && a.end >= e);
-    if (covering.length > 0) {
-      const { className, details } = computeColorAndDetails(covering, allUsers);
-      segments.push({ start: s, end: e, covering, className, details });
-    }
+// 1️⃣ Collect breakpoints for each XPath node
+annSpans.forEach(a => {
+  (breaksByPath[a.startPath] ||= new Set()).add(a.startOffset);
+  (breaksByPath[a.endPath] ||= new Set()).add(a.endOffset);
+});
+
+// 2️⃣ For each XPath text node, sort offsets and build local sub-segments
+for (const [path, offs] of Object.entries(breaksByPath)) {
+  const sorted = [...offs].sort((a, b) => a - b);
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const start = sorted[i];
+    const end = sorted[i + 1];
+    if (start === end) continue;
+
+    // all annotation spans that cover this sub-range
+    const covering = annSpans.filter(a =>
+      a.startPath === path &&
+      a.startOffset <= start &&
+      a.endOffset >= end
+    );
+    if (covering.length === 0) continue;
+
+    // compute color & sidebar details
+    const { className, details } = computeColorAndDetails(covering, allUsers);
+
+    // use existing LS helper (reliable DOM mapping)
+    const range = lsRangeFromXPathOffsets(container, path, start, path, end);
+    if (!range) continue;
+
+    segments.push({
+      startPath: path,
+      endPath: path,
+      startOffset: start,
+      endOffset: end,
+      covering,
+      className,
+      details,
+      range
+    });
   }
+}
 
-  // Save for filters
-  window.__lastTaskSegments = { segments, domFlatMap };
+window.__lastTaskSegments = { segments };
+console.log('XPath segments created:', segments.length);
 
-  // ---------- CSS Custom Highlight API ----------
+
+
+
+
+  // ---------- Highlight colors ----------
   const supportsHighlights = typeof CSS !== 'undefined' && CSS.highlights && typeof CSS.highlights.set === 'function';
   if (!document.getElementById('textColorHighlightStyles')) {
     const style = document.createElement('style');
@@ -586,111 +650,62 @@ function processTask(task) {
   function paintAllSegments() {
     if (!supportsHighlights) return;
     try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
-
     const agree = [], partial = [], conflict = [];
     segments.forEach(seg => {
-      const range = toRangeFromFlat(domFlatMap, seg.start, seg.end);
+    const range = lsRangeFromXPathOffsets(container, seg.startPath, seg.startOffset, seg.endPath, seg.endOffset);
       if (!range) return;
       if (seg.className === 'green') agree.push(range);
       else if (seg.className === 'yellow') partial.push(range);
       else if (seg.className === 'red') conflict.push(range);
     });
-
     if (agree.length)   CSS.highlights.set('agree',   new Highlight(...agree));
     if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
     if (conflict.length)CSS.highlights.set('conflict',new Highlight(...conflict));
   }
   paintAllSegments();
 
-  // ---------- Hover / lock (unchanged, but uses domFlatMap now) ----------
+  // ---------- Hover / lock (range-based) ----------
   const detailsEl = document.getElementById('details');
   const relationInfo = document.getElementById('relationInfo');
   let locked = false, lastKey = null, lockedSeg = null;
 
-  function showSegmentDetails(seg) {
-    if (!detailsEl) return;
-    if (!seg) { detailsEl.innerHTML = ''; if (relationInfo) relationInfo.innerHTML = ''; return; }
-
-    let html = seg.details || 'No labels';
-
-    // Relation tuples (unchanged)
-    try {
-      const wordText = (container.textContent || '').replace(/\s+/g, ' ').slice(seg.start, seg.end).trim();
-      const relationTuples = [];
-
-      (task.annotations || []).forEach(annObj => {
-        const userEmail = annObj.completed_by?.email || annObj.completed_by || 'Unknown';
-        const nodes = []; const links = [];
-        (annObj.result || []).forEach(r => {
-          if (r.type === 'labels' && r.value?.labels) {
-            nodes.push({
-              id: r.id,
-              text: r.value.text || '',
-              label: Array.isArray(r.value.labels) ? r.value.labels[0] : r.value.labels
-            });
-          } else if (r.type === 'relation' && r.from_id && r.to_id) {
-            links.push({ source: r.from_id, target: r.to_id });
-          }
-        });
-        links.forEach(l => {
-          const src = nodes.find(n => n.id === l.source);
-          const tgt = nodes.find(n => n.id === l.target);
-          if (src && tgt && (src.text.includes(wordText) || tgt.text.includes(wordText))) {
-            relationTuples.push(`${userEmail}: (<b>${src.label || 'Label'} → ${tgt.label || 'Label'}</b>) – “${src.text}” → “${tgt.text}”`);
-          }
-        });
-      });
-
-      if (relationTuples.length > 0) {
-        const relationHTML = relationTuples.map(t => `<div style="margin-bottom:4px;">${t}</div>`).join('');
-        html += `<hr><b>Relations:</b><br>${relationHTML}`;
-        if (relationInfo) relationInfo.innerHTML = relationHTML;
-      } else if (relationInfo) relationInfo.innerHTML = '';
-    } catch (e) {
-      console.warn('Relation tuple extraction failed:', e);
+  function rangeContainsClientPoint(range, x, y) {
+    const rects = range.getClientRects();
+    for (const r of rects) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
     }
-
-    detailsEl.innerHTML = html;
+    return false;
   }
 
-  function caretToFlatIndex(x, y) {
-    // Convert caret DOM position to nearest flat index by scanning domFlatMap
-    let rng = null;
-    if (document.caretRangeFromPoint) rng = document.caretRangeFromPoint(x, y);
-    else if (document.caretPositionFromPoint) {
-      const pos = document.caretPositionFromPoint(x, y);
-      if (pos) { rng = document.createRange(); rng.setStart(pos.offsetNode, pos.offset); rng.collapse(true); }
-    }
-    if (!rng || !rng.startContainer) return null;
-    const node = rng.startContainer, offset = rng.startOffset;
-
-    // Find first mapping entry at/after this (node,offset)
-    for (let i = 0; i < domFlatMap.length; i++) {
-      const m = domFlatMap[i];
-      if (m.node === node && m.offset >= offset) return i;
+  function segAtClientPoint(x, y) {
+    for (const seg of segments) {
+    const r = lsRangeFromXPathOffsets(container, seg.startPath, seg.startOffset, seg.endPath, seg.endOffset);
+      if (r && rangeContainsClientPoint(r, x, y)) return seg;
     }
     return null;
-  }
-
-  function segAtFlatIndex(i) {
-    return segments.find(s => i >= s.start && i < s.end) || null;
   }
 
   function setHover(seg) {
     if (!supportsHighlights) return;
     try { CSS.highlights.delete('hoverSeg'); } catch {}
     if (seg) {
-      const r = toRangeFromFlat(domFlatMap, seg.start, seg.end);
+      const r = lsRangeFromXPathOffsets(container, seg.startPath, seg.startOffset, seg.endPath, seg.endOffset);
       if (r) CSS.highlights.set('hoverSeg', new Highlight(r));
     }
   }
 
-  container.style.cursor = 'text';
+  function showSegmentDetails(seg) {
+    if (!detailsEl) return;
+    if (!seg) { detailsEl.innerHTML = ''; if (relationInfo) relationInfo.innerHTML = ''; return; }
 
+    let html = seg.details || 'No labels';
+    detailsEl.innerHTML = html;
+  }
+
+  container.style.cursor = 'text';
   container.addEventListener('mousemove', e => {
     if (locked) return;
-    const idx = caretToFlatIndex(e.clientX, e.clientY);
-    const seg = segAtFlatIndex(idx);
+    const seg = segAtClientPoint(e.clientX, e.clientY);
     const key = seg ? `${seg.start}-${seg.end}` : null;
     if (key === lastKey) return;
     lastKey = key;
@@ -706,8 +721,7 @@ function processTask(task) {
   });
 
   container.addEventListener('click', e => {
-    const idx = caretToFlatIndex(e.clientX, e.clientY);
-    const seg = segAtFlatIndex(idx);
+    const seg = segAtClientPoint(e.clientX, e.clientY);
     if (locked && seg === lockedSeg) {
       locked = false; lockedSeg = null;
       if (detailsEl) detailsEl.classList.remove('locked');
@@ -719,7 +733,7 @@ function processTask(task) {
     }
   });
 
-  // ---------- Metrics & reports (unchanged) ----------
+  // ---------- Metrics & reports ----------
   const grouped = {};
   annSpans.forEach(a => { (grouped[`${a.start}-${a.end}`] ||= []).push(a); });
   const fullAgree = Object.values(grouped).filter(list => {
@@ -729,23 +743,18 @@ function processTask(task) {
   }).length;
 
   updateStatsDisplay(Object.keys(grouped).length, fullAgree, allUsers.size);
-
   const f1Metrics = calculateF1Metrics(annSpans, allUsers);
   const jaccardMetrics = calculateJaccardMetrics(annSpans, allUsers);
   const f1ByLabel = calculateF1ByLabel(annSpans, allUsers);
 
-  const f1El = document.getElementById('f1Score');
-  const jaccardEl = document.getElementById('jaccardScore');
-  if (f1El) f1El.textContent = f1Metrics.f1Score + '%';
-  if (jaccardEl) jaccardEl.textContent = jaccardMetrics.jaccard + '%';
+  if (document.getElementById('f1Score')) document.getElementById('f1Score').textContent = f1Metrics.f1Score + '%';
+  if (document.getElementById('jaccardScore')) document.getElementById('jaccardScore').textContent = jaccardMetrics.jaccard + '%';
 
-  // Pairwise F1 by annotator
   const annotatorList = Array.from(allUsers);
   const pairwiseF1 = [];
   for (let i = 0; i < annotatorList.length; i++) {
     for (let j = i + 1; j < annotatorList.length; j++) {
-      const userA = annotatorList[i];
-      const userB = annotatorList[j];
+      const userA = annotatorList[i], userB = annotatorList[j];
       const spansA = annSpans.filter(s => s.user === userA);
       const spansB = annSpans.filter(s => s.user === userB);
       const { precision, recall } = calculatePairwiseMetrics(spansA, spansB);
@@ -754,7 +763,66 @@ function processTask(task) {
     }
   }
 
-  const labelReportContainer = document.getElementById('labelReports');
+  if (document.getElementById('pairwiseF1')) {
+    document.getElementById('pairwiseF1').innerHTML =
+      '<h4>Pairwise F1 by Annotator</h4>' +
+      pairwiseF1.map(p => `<div>${p.pair}: <b>${p.f1}%</b></div>`).join('');
+  }
+  if (document.getElementById('labelF1')) {
+    document.getElementById('labelF1').innerHTML =
+      '<h4>F1 by Label Category</h4>' +
+      f1ByLabel.map(l => `<div>${l.label}: <b>${l.f1}%</b></div>`).join('');
+  }
+
+  const labelFilterContainer = document.getElementById('labelFilterContainer');
+  if (labelFilterContainer) {
+    const labels = [...new Set(annSpans.map(a => a.label).filter(Boolean))];
+    labelFilterContainer.innerHTML =
+      `<button class="label-filter-btn active" data-label="all">All Labels</button>` +
+      labels.map(l => `<button class="label-filter-btn" data-label="${l}">${l}</button>`).join('');
+    labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyLabelFilter(btn.dataset.label);
+      });
+    });
+  }
+
+  function applyLabelFilter(labelType) {
+    if (!window.__lastTaskSegments) return;
+    const { segments } = window.__lastTaskSegments;
+    if (!supportsHighlights) return;
+    try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
+    const agree = [], partial = [];
+    segments.forEach(seg => {
+      const hasLabel = seg.covering.some(a => a.label === labelType);
+      if (labelType !== 'all' && !hasLabel) return;
+      const range = lsRangeFromXPathOffsets(container, seg.startPath, seg.startOffset, seg.endPath, seg.endOffset);
+      if (!range) return;
+      if (labelType === 'all') {
+        if (seg.className === 'green') agree.push(range);
+        else if (seg.className === 'yellow') partial.push(range);
+        else if (seg.className === 'red') partial.push(range);
+      } else {
+        if (seg.className === 'green') agree.push(range);
+        else if (seg.className === 'yellow') partial.push(range);
+      }
+    });
+    if (agree.length) CSS.highlights.set('agree', new Highlight(...agree));
+    if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
+  }
+
+  const btnContainer = document.getElementById('relationButtonContainer');
+  if (btnContainer) {
+    btnContainer.innerHTML = `
+      <button id="viewRelationsBtn" style="background:#4f46e5;color:white;
+        border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:0.9em;">
+        🔗 View All Relations</button>`;
+    document.getElementById('viewRelationsBtn').onclick = () => openRelationsPage(task);
+  }
+
+      const labelReportContainer = document.getElementById('labelReports');
   if (labelReportContainer) {
     const reports = generateLabelReports(annSpans, allUsers, task);
     labelReportContainer.innerHTML = `
@@ -780,109 +848,12 @@ function processTask(task) {
         </div>
       `).join('')}
     `;
-  }
-
-  const analysis = document.getElementById('analysisResults');
-  if (analysis) analysis.style.display = 'block';
-
-  const pairwiseContainer = document.getElementById('pairwiseF1');
-  if (pairwiseContainer) {
-    pairwiseContainer.innerHTML =
-      '<h4>Pairwise F1 by Annotator</h4>' +
-      pairwiseF1.map(p => `<div>${p.pair}: <b>${p.f1}%</b></div>`).join('');
-  }
-
-  const labelF1Container = document.getElementById('labelF1');
-  if (labelF1Container) {
-    labelF1Container.innerHTML =
-      '<h4>F1 by Label Category</h4>' +
-      f1ByLabel.map(l => `<div>${l.label}: <b>${l.f1}%</b></div>`).join('');
-  }
-
-  // Color distribution
-  const colorCounts = { red: 0, yellow: 0, green: 0 };
-  segments.forEach(s => { if (s.className && s.className in colorCounts) colorCounts[s.className]++; });
-  const totalSegs = colorCounts.red + colorCounts.yellow + colorCounts.green;
-  const pct = k => totalSegs ? ((colorCounts[k] / totalSegs) * 100).toFixed(1) + '%' : '0%';
-
-  const mismatch = document.getElementById('mismatchDist');
-  if (mismatch) {
-    mismatch.innerHTML = `
-      <h4>Color Distribution</h4>
-      <div>🟢 Green (agreement): <b>${pct('green')}</b></div>
-      <div>🟡 Yellow (partial): <b>${pct('yellow')}</b></div>
-      <div>🔴 Red (conflict): <b>${pct('red')}</b></div>
-    `;
-  }
-
-  // ---------- Label filter buttons (preserved) ----------
-  const labelFilterContainer = document.getElementById('labelFilterContainer');
-  if (labelFilterContainer) {
-    const labels = [...new Set((task.annotations || [])
-      .flatMap(a => (a.result || []).map(r => (Array.isArray(r.value?.labels) ? r.value.labels[0] : r.value?.labels)))
-      .filter(Boolean))];
-
-    labelFilterContainer.innerHTML = `
-      <button class="label-filter-btn active" data-label="all">All Labels</button>
-    ` + labels.map(l => `<button class="label-filter-btn" data-label="${l}">${l}</button>`).join('');
-
-    labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        labelFilterContainer.querySelectorAll('.label-filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        applyLabelFilter(btn.dataset.label);
-      });
-    });
-  }
-
-  // Add "View Relations" button
-  const btnContainer = document.getElementById('relationButtonContainer');
-  if (btnContainer) {
-    btnContainer.innerHTML = `
-      <button id="viewRelationsBtn" style="
-        background:#4f46e5;color:white;
-        border:none;border-radius:6px;
-        padding:8px 16px;cursor:pointer;
-        font-size:0.9em;">🔗 View All Relations</button>`;
-    document.getElementById('viewRelationsBtn').onclick = () => openRelationsPage(task);
-  }
-
-
+    }
   if (statsEl) statsEl.innerHTML = 'Analysis complete. Stats updated below.';
-
-  // Uses the new domFlatMap so offsets remain correct under filtering
-  function applyLabelFilter(labelType) {
-    if (!window.__lastTaskSegments) return;
-    const { segments, domFlatMap } = window.__lastTaskSegments;
-    if (!supportsHighlights) return;
-
-    try { for (const k of CSS.highlights.keys()) CSS.highlights.delete(k); } catch {}
-
-    const agree = [], partial = [];
-
-    segments.forEach(seg => {
-      const hasLabel = seg.covering.some(a => a.label === labelType);
-      if (labelType !== 'all' && !hasLabel) return;
-      const range = toRangeFromFlat(domFlatMap, seg.start, seg.end);
-      if (!range) return;
-
-      if (labelType === 'all') {
-        // normal painting
-        if (seg.className === 'green') agree.push(range);
-        else if (seg.className === 'yellow') partial.push(range);
-        else if (seg.className === 'red') partial.push(range); // show red in "all"
-      } else {
-        // in filtered mode, only green/yellow (no red)
-        if (seg.className === 'green') agree.push(range);
-        else if (seg.className === 'yellow') partial.push(range);
-      }
-    });
-
-    if (agree.length) CSS.highlights.set('agree', new Highlight(...agree));
-    if (partial.length) CSS.highlights.set('partial', new Highlight(...partial));
-  }
   window.__lastTask = task;
 }
+
+
 
 // 🟪 Button: open relations page
 document.addEventListener('DOMContentLoaded', () => {

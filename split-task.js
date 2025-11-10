@@ -4,9 +4,9 @@ import path from "path";
 
 // === CONFIGURATION ===
 // Path to your Label Studio export JSON file
-const INPUT_FILE = "export_192012_project-192012-at-2025-10-29-18-17-668a83f1.json";
+const INPUT_FILE = "export_192012_project-192012-at-2025-11-06-17-30-0e57e88e.json";
 // Where to store the split tasks
-const OUTPUT_DIR = "./data/export_192012_project-192012-at-2025-10-29-18-17-668a83f1";
+const OUTPUT_DIR = "./data/export_192012_project-192012-at-2025-11-06-17-30-0e57e88e";
 
 if (!fs.existsSync(INPUT_FILE)) {
   console.error(`❌ Input file not found: ${INPUT_FILE}`);
